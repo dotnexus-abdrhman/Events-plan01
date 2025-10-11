@@ -1,0 +1,56 @@
+@model IEnumerable<EventPl.Dto.AdminDto>
+@{
+    ViewData["Title"] = "المسؤولون";
+}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="fas fa-user-shield me-2"></i>المسؤولون</h2>
+    <a asp-area="Admin" asp-controller="Admins" asp-action="CreateOrPromote" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i> مسؤول جديد / ترقية
+    </a>
+</div>
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                <tr>
+                    <th>الاسم</th>
+                    <th>البريد</th>
+                    <th>الهاتف</th>
+                    <th>نشط</th>
+                    <th>أُنشيء في</th>
+                    <th class="text-end">إجراءات</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var a in Model)
+                {
+                    <tr>
+                        <td>@(a.FullName ?? "-")</td>
+                        <td>@a.Email</td>
+                        <td>@(a.Phone ?? "-")</td>
+                        <td>
+                            @if(a.IsActive){<span class="badge bg-success">نعم</span>} else {<span class="badge bg-secondary">لا</span>}
+                        </td>
+                        <td>@a.CreatedAt.ToString("yyyy/MM/dd HH:mm")</td>
+                        <td class="text-end">
+                            <div class="btn-group" role="group">
+                                <a class="btn btn-sm btn-outline-primary" asp-area="Admin" asp-controller="Admins" asp-action="Edit" asp-route-id="@a.Id">
+                                    <i class="fas fa-edit"></i> تعديل
+                                </a>
+                                <form asp-area="Admin" asp-controller="Admins" asp-action="Delete" asp-route-id="@a.Id" method="post" onsubmit="return confirm('تأكيد الحذف؟');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-trash"></i> حذف
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+

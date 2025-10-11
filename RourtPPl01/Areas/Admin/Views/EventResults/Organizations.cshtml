@@ -1,0 +1,41 @@
+@model IEnumerable<EvenDAL.Models.Classes.Organization>
+@{
+    ViewData["Title"] = "الجهات";
+}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="fas fa-sitemap me-2"></i>الجهات</h2>
+</div>
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                <tr>
+                    <th>الاسم</th>
+                    <th>النوع</th>
+                    <th>الحالة</th>
+                    <th class="text-end">انتقال</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var o in Model)
+                {
+                    <tr>
+                        <td>@(o.Name ?? o.NameEn)</td>
+                        <td>@o.Type</td>
+                        <td>
+                            @if(o.IsActive){<span class="badge bg-success">نشط</span>} else {<span class="badge bg-secondary">غير نشط</span>}
+                        </td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-primary" asp-area="Admin" asp-controller="EventResults" asp-action="OrganizationEvents" asp-route-id="@o.OrganizationId">
+                                عرض الأحداث
+                            </a>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+

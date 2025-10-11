@@ -1,0 +1,344 @@
+/* ============================================
+   Mina Events - Custom Styles (RTL)
+   ============================================ */
+
+:root {
+    --primary: #4A90E2;
+    --primary-dark: #357ABD;
+    --success: #5CB85C;
+    --danger: #D9534F;
+    --warning: #F0AD4E;
+    --info: #5BC0DE;
+    --light-bg: #F8F9FA;
+    --dark-text: #2C3E50;
+    --border: #E0E6ED;
+    --shadow: rgba(0, 0, 0, 0.08);
+}
+
+/* ============================================
+   Global Styles
+   ============================================ */
+body {
+    font-family: 'Tajawal', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--light-bg);
+    color: var(--dark-text);
+}
+
+.navbar {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    box-shadow: 0 2px 8px var(--shadow);
+}
+
+.navbar-brand {
+    font-weight: 600;
+    font-size: 1.3rem;
+}
+
+.navbar-nav .nav-link {
+    transition: all 0.3s ease;
+    border-radius: 6px;
+    margin: 0 4px;
+}
+
+.navbar-nav .nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+}
+
+/* ============================================
+   Cards
+   ============================================ */
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px var(--shadow);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+    transform: translateY(-4px);
+}
+
+.card-header {
+    border-radius: 12px 12px 0 0 !important;
+    font-weight: 600;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================
+   Buttons
+   ============================================ */
+.btn {
+    border-radius: 8px;
+    padding: 0.5rem 1.2rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: none;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4);
+}
+
+.btn-success {
+    background-color: var(--success);
+}
+
+.btn-success:hover {
+    background-color: #4CAF50;
+    transform: translateY(-2px);
+}
+
+.btn-danger {
+    background-color: var(--danger);
+}
+
+.btn-danger:hover {
+    background-color: #C9302C;
+    transform: translateY(-2px);
+}
+
+.btn-sm {
+    padding: 0.35rem 0.8rem;
+    font-size: 0.875rem;
+}
+
+/* ============================================
+   Forms
+   ============================================ */
+.form-control, .form-select {
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    padding: 0.6rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 0.2rem rgba(74, 144, 226, 0.15);
+}
+
+.form-label {
+    font-weight: 500;
+    color: var(--dark-text);
+    margin-bottom: 0.5rem;
+}
+
+/* ============================================
+   Tables
+   ============================================ */
+.table {
+    background-color: white;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.table thead th {
+    background-color: var(--light-bg);
+    border-bottom: 2px solid var(--border);
+    font-weight: 600;
+    color: var(--dark-text);
+}
+
+.table tbody tr {
+    transition: all 0.2s ease;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(74, 144, 226, 0.05);
+}
+
+/* ============================================
+   Badges
+   ============================================ */
+.badge {
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+/* ============================================
+   Alerts
+   ============================================ */
+.alert {
+    border-radius: 10px;
+    border: none;
+    box-shadow: 0 2px 8px var(--shadow);
+}
+
+.alert-success {
+    background-color: #D4EDDA;
+    color: #155724;
+}
+
+.alert-danger {
+    background-color: #F8D7DA;
+    color: #721C24;
+}
+
+.alert-info {
+    background-color: #D1ECF1;
+    color: #0C5460;
+}
+
+/* ============================================
+   Event Cards (User Portal)
+   ============================================ */
+.event-card {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.event-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+}
+
+.event-card .card-footer {
+    background-color: rgba(74, 144, 226, 0.05);
+    border-top: 1px solid var(--border);
+}
+
+/* ============================================
+   Signature Canvas
+   ============================================ */
+#signatureCanvas {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    background-color: white;
+    cursor: crosshair;
+}
+
+/* ============================================
+   Statistics Cards
+   ============================================ */
+.stat-card {
+    border-left: 4px solid var(--primary);
+}
+
+.stat-card.success {
+    border-left-color: var(--success);
+}
+
+.stat-card.danger {
+    border-left-color: var(--danger);
+}
+
+.stat-card.warning {
+    border-left-color: var(--warning);
+}
+
+.stat-card.info {
+    border-left-color: var(--info);
+}
+
+/* ============================================
+   Progress Bars
+   ============================================ */
+.progress {
+    height: 1.5rem;
+    border-radius: 8px;
+    background-color: var(--light-bg);
+}
+
+.progress-bar {
+    border-radius: 8px;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
+}
+
+/* ============================================
+   Responsive
+   ============================================ */
+@media (max-width: 768px) {
+    .navbar-brand {
+        font-size: 1.1rem;
+    }
+
+    .card {
+        margin-bottom: 1rem;
+    }
+
+    .btn {
+        padding: 0.4rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    h2 {
+        font-size: 1.5rem;
+    }
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+/* ============================================
+   Utilities
+   ============================================ */
+.text-primary-custom {
+    color: var(--primary) !important;
+}
+
+.bg-primary-custom {
+    background-color: var(--primary) !important;
+}
+
+.border-primary-custom {
+    border-color: var(--primary) !important;
+}
+
+.shadow-custom {
+    box-shadow: 0 4px 16px var(--shadow) !important;
+}
+
+
+
+/* ============================================
+   Icon Colors & Soft Badges
+   ============================================ */
+.icon-primary { color: var(--primary) !important; }
+.icon-success { color: var(--success) !important; }
+.icon-warning { color: var(--warning) !important; }
+.icon-danger  { color: var(--danger)  !important; }
+.icon-info    { color: var(--info)    !important; }
+
+.badge-soft-primary { background-color: rgba(74,144,226,.12); color: var(--primary); }
+.badge-soft-success { background-color: rgba(92,184,92,.12);  color: var(--success); }
+.badge-soft-warning { background-color: rgba(240,173,78,.12); color: var(--warning); }
+.badge-soft-danger  { background-color: rgba(217,83,79,.12);  color: var(--danger); }
+.badge-soft-info    { background-color: rgba(91,192,222,.12); color: var(--info); }
+
+/* ============================================
+   Direction-aware Accent Borders
+   ============================================ */
+.accent-start-primary { border-inline-start: 4px solid var(--primary) !important; }
+.accent-start-success { border-inline-start: 4px solid var(--success) !important; }
+.accent-start-warning { border-inline-start: 4px solid var(--warning) !important; }
+.accent-start-danger  { border-inline-start: 4px solid var(--danger)  !important; }
+.accent-start-info    { border-inline-start: 4px solid var(--info)    !important; }
+
+/* ============================================
+   Layout
+   ============================================ */
+.main-container { padding-bottom: 2rem; }
+.card-muted-header .card-header { background-color: rgba(0,0,0,.02); }

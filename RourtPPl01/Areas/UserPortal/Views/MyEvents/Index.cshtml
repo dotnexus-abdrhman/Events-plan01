@@ -1,0 +1,181 @@
+@model MyEventsIndexViewModel
+@{
+    ViewData["Title"] = "أحداثي";
+}
+
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="mb-0"><i class="fas fa-calendar me-2"></i>أحداثي</h2>
+        <p class="text-muted">الأحداث المتاحة لجهتك</p>
+    </div>
+</div>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div></div>
+    <form method="post" asp-action="HideAll" onsubmit="return confirm('هل أنت متأكد من حذف جميع الأحداث؟');">
+        @Html.AntiForgeryToken()
+        <button type="submit" class="btn btn-outline-danger">
+            <i class="fas fa-trash-alt me-1"></i> حذف جميع الأحداث
+        </button>
+    </form>
+</div>
+
+@{
+    var toastMsg = TempData["Success"] ?? TempData["Error"];
+    var isSuccess = TempData["Success"] != null;
+}
+<div aria-live="polite" aria-atomic="true" class="position-relative">
+    <div class="toast-container position-fixed top-0 start-50 translate-middle-x p-3" style="z-index: 1080">
+        @if(toastMsg != null)
+        {
+            <div class="toast align-items-center text-white @((isSuccess ? "bg-success" : "bg-danger")) border-0" role="alert" aria-live="assertive" aria-atomic="true" id="statusToast">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        @toastMsg
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function(){
+        var el = document.getElementById('statusToast');
+        if (el && window.bootstrap && bootstrap.Toast){
+            var t = new bootstrap.Toast(el, { delay: 2500 });
+            t.show();
+        }
+    });
+</script>
+
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-8">
+                <input type="text" name="search" class="form-control" placeholder="بحث بالعنوان..." value="@Model.SearchTerm">
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search me-1"></i>بحث
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if(Model.Events.Any())
+{
+    <div class="row g-4">
+        @foreach(var evt in Model.Events)
+        {
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm hover-shadow">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <h5 class="card-title mb-0">@evt.Title</h5>
+                            @if(evt.Status == EventStatus.Active)
+                            {
+                                <span class="badge bg-success">نشط</span>
+                            }
+                            else if(evt.Status == EventStatus.Draft)
+                            {
+                                <span class="badge bg-secondary">مسودة</span>
+                            }
+                            else if(evt.Status == EventStatus.Completed)
+                            {
+                                <span class="badge bg-primary">مكتمل</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-danger">ملغي</span>
+                            }
+                        </div>
+
+                        <p class="card-text text-muted">
+                            @(evt.Description?.Length > 100 ? evt.Description.Substring(0, 100) + "..." : evt.Description)
+                        </p>
+
+                        <div class="mb-3">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar me-1"></i>
+                                من @evt.StartAt.ToString("yyyy/MM/dd") إلى @evt.EndAt.ToString("yyyy/MM/dd")
+                            </small>
+                        </div>
+
+                        @if(evt.RequireSignature)
+                        {
+                            <div class="alert alert-warning alert-sm mb-3 py-2">
+                                <i class="fas fa-signature me-1"></i>
+                                <small>يتطلب توقيع</small>
+                            </div>
+                        }
+
+                        <div class="d-grid gap-2">
+                            <a href="/UserPortal/EventParticipation/Details/@evt.EventId" class="btn btn-primary">
+                                <i class="fas fa-arrow-left me-2"></i>عرض التفاصيل
+                            </a>
+                            <form method="post" asp-action="Hide" onsubmit="return confirm('\u0647\u0644 \u0623\u0646\u062a \u0645\u062a\u0623\u0643\u062f \u0645\u0646 \u062d\u0630\u0641 \u0647\u0630\u0627 \u0627\u0644\u062d\u062f\u062b\u061f');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="eventId" value="@evt.EventId" />
+                                <button type="submit" class="btn btn-outline-danger">
+                                    <i class="fas fa-trash me-1"></i> حذف
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card-footer bg-light">
+                        <div class="row text-center small">
+                            <div class="col-4">
+                                <i class="fas fa-list text-primary"></i>
+                                <div>@evt.SectionsCount بند</div>
+                            </div>
+                            <div class="col-4">
+                                <i class="fas fa-poll text-info"></i>
+                                <div>@evt.SurveysCount استبيان</div>
+                            </div>
+                            <div class="col-4">
+                                <i class="fas fa-comments text-success"></i>
+                                <div>@evt.DiscussionsCount نقاش</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="card empty-state">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
+            <h4 class="text-muted mb-2">لا توجد أحداث متاحة حالياً</h4>
+            <p class="text-muted mb-4">سيتم إشعارك عند إضافة أحداث جديدة</p>
+            <a href="" class="btn btn-outline-primary"><i class="fas fa-rotate me-1"></i>تحديث الصفحة</a>
+        </div>
+    </div>
+}
+
+@section Styles {
+<style>
+.hover-shadow {
+    transition: all 0.3s ease;
+}
+.hover-shadow:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.15) !important;
+}
+.alert-sm {
+    font-size: 0.875rem;
+}
+.empty-state {
+    border: 1px dashed #dee2e6;
+    background: linear-gradient(180deg, #ffffff, #f8f9fa);
+}
+.toast-container { pointer-events: none; }
+.toast .btn-close { pointer-events: all; }
+</style>
+}
+

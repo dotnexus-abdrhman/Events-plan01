@@ -1,0 +1,14 @@
+{
+  "AllowedHosts": "CHANGE_TO_DOMAIN_OR_*",
+  "ConnectionStrings": {
+    "Default": "CHANGE_ON_SERVER (or set env var: ConnectionStrings__Default)"
+  },
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft": "Warning",
+      "Microsoft.Hosting.Lifetime": "Information"
+    }
+  }
+}
+

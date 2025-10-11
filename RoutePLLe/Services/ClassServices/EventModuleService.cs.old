@@ -1,0 +1,353 @@
+﻿using System.Text.Json;
+using EventPl.Dto;
+using EventPl.Services.Interface;
+using EvenDAL.Models.Classes;
+using EvenDAL.Models.Shared.Enums; // Enums (EventType, EventStatus, VotingStatus)
+using EvenDAL.Repositories.InterFace;
+
+namespace EventPl.Services.ClassServices
+{
+    /// <summary>
+    /// منطق إنشاء/تعديل/حذف الفعالية + جلسة الاستبيان وخياراتها.
+    /// يحفظ أي تفاصيل إضافية داخل Settings (JSON) ولا يظهرها في الـUI.
+    /// متوافق مع IRepository: AddAsync/UpdateAsync/DeleteAsync/DeleteByIdAsync/FindAsync/GetByIdAsync.
+    /// </summary>
+    public class EventModuleService : IEventModuleService
+    {
+        private readonly IRepository<Event, Guid> _eventRepo;
+        private readonly IRepository<VotingSession, Guid> _sessionRepo;
+        private readonly IRepository<VotingOption, Guid> _optionRepo;
+        private readonly IRepository<Vote, Guid> _voteRepo;
+
+        public EventModuleService(
+            IRepository<Event, Guid> eventRepo,
+            IRepository<VotingSession, Guid> sessionRepo,
+            IRepository<VotingOption, Guid> optionRepo,
+            IRepository<Vote, Guid> voteRepo)
+        {
+            _eventRepo = eventRepo;
+            _sessionRepo = sessionRepo;
+            _optionRepo = optionRepo;
+            _voteRepo = voteRepo;
+        }
+
+        #region Internal settings (never shown on UI)
+        private sealed class EventSettings
+        {
+            public string? SurveyMode { get; set; }           // "Poll" حالياً
+            public string? DiscussionPurpose { get; set; }    // لنقاش/ورشة
+            public bool? IsMultipleChoice { get; set; }       // نخزنها هنا/داخل الجلسة
+            public List<TableSettings>? Tables { get; set; }  // جداول (اختياري)
+        }
+
+        private sealed class TableSettings
+        {
+            public string? Title { get; set; }
+            public string? Description { get; set; }
+            public List<ColumnDef> Columns { get; set; } = new();
+            public List<List<string>> Rows { get; set; } = new();
+        }
+        private sealed class ColumnDef
+        {
+            public string Name { get; set; } = string.Empty;
+            public string Type { get; set; } = "Text"; // Text|Number|Currency|Date
+        }
+
+        private static EventSettings ReadSettings(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return new();
+            try {
+                var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                return JsonSerializer.Deserialize<EventSettings>(json!, opts) ?? new();
+            }
+            catch { return new(); }
+        }
+        private static string WriteSettings(EventSettings s) => JsonSerializer.Serialize(s);
+        #endregion
+
+        #region Enum mappers (بدون الإشارة لأعضاء غير موجودة)
+        private static string NormalizeArabicToEnglish(string input)
+        {
+            var v = input.Trim();
+            return v switch
+            {
+                "استبيان" => "Survey",
+                "ورشة" => "Workshop",
+                "اجتماع" => "Meeting",
+                "نقاش" => "Meeting",   // لا نستخدم اسم عضو غير موجود؛ نُسقطها لأقرب نوع موجود
+                "مسودة" => "Draft",
+                "نشط" => "Active",
+                _ => v
+            };
+        }
+
+        private static EventType MapEventType(string? name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return EventType.Meeting;
+            var key = NormalizeArabicToEnglish(name);
+            return Enum.TryParse<EventType>(key, true, out var parsed) ? parsed : EventType.Meeting;
+        }
+
+        private static EventStatus MapEventStatus(string? name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return EventStatus.Draft;
+            var key = NormalizeArabicToEnglish(name);
+            return Enum.TryParse<EventStatus>(key, true, out var parsed) ? parsed : EventStatus.Draft;
+        }
+
+        private static VotingStatus MapVotingStatus(string? name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return VotingStatus.Active;
+            var key = NormalizeArabicToEnglish(name);
+            return Enum.TryParse<VotingStatus>(key, true, out var parsed) ? parsed : VotingStatus.Active;
+        }
+        #endregion
+
+        private static bool IsSurvey(string? typeName) => MapEventType(typeName) == EventType.Survey;
+        private static bool IsDiscussionLike(string? typeName)
+        {
+            // نعتبر “نقاش/ورشة/اجتماع” كأنواع غير استبيان (لا ننشئ جلسة خيارات)
+            var t = MapEventType(typeName);
+            return t == EventType.Workshop || t == EventType.Meeting /* أو غيرها إن وُجدت */;
+        }
+
+        private static bool? TryExtractIsMultipleChoice(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return null;
+            try
+            {
+                using var doc = JsonDocument.Parse(json);
+                if (doc.RootElement.TryGetProperty("isMultipleChoice", out var el))
+                {
+                    if (el.ValueKind == JsonValueKind.True) return true;
+                    if (el.ValueKind == JsonValueKind.False) return false;
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        public async Task<Guid> CreateEventAsync(
+            EventDto eventDto,
+            VotingSessionDto? surveySession,
+            IEnumerable<VotingOptionDto>? surveyOptions,
+            string? discussionPurpose = null)
+        {
+            // 1) إنشاء الفعالية (Enums بدلاً من Strings)
+            var entity = new Event
+            {
+                EventId = eventDto.EventId == Guid.Empty ? Guid.NewGuid() : eventDto.EventId,
+                OrganizationId = eventDto.OrganizationId,
+                CreatedById = eventDto.CreatedById,
+                Title = eventDto.Title?.Trim(),
+                Description = eventDto.Description ?? string.Empty,
+                Status = MapEventStatus(eventDto.StatusName),
+                StartAt = eventDto.StartDate,
+                EndAt = eventDto.EndDate,
+                CreatedAt = DateTime.UtcNow,
+                RequireSignature = false // القيمة الافتراضية
+            };
+
+            // ملاحظة: Settings و Tables و AllowProposals/AllowDiscussion لم تعد موجودة في Event
+            // سيتم التعامل معها لاحقاً في المراحل القادمة
+
+            // ملاحظة: Settings لم تعد موجودة في Event - سيتم التعامل معها لاحقاً
+
+
+            await _eventRepo.AddAsync(entity);
+
+            // 2) لو استبيان: أنشئ الجلسة + الخيارات
+            if (IsSurvey(eventDto.TypeName))
+            {
+                if (surveySession is null)
+                    throw new InvalidOperationException("جلسة الاستبيان مطلوبة عند اختيار النوع 'استبيان'.");
+
+                var session = new VotingSession
+                {
+                    VotingSessionId = surveySession.VotingSessionId == Guid.Empty ? Guid.NewGuid() : surveySession.VotingSessionId,
+                    EventId = entity.EventId,
+                    Title = string.IsNullOrWhiteSpace(surveySession.Title) ? entity.Title : surveySession.Title!.Trim(),
+                    Question = (surveySession.Question ?? string.Empty).Trim(),
+                    StartTime = surveySession.StartTime == default ? entity.StartAt : surveySession.StartTime,
+                    EndTime = surveySession.EndTime,
+                    IsAnonymous = surveySession.IsAnonymous,
+                    Status = MapVotingStatus(surveySession.StatusName),
+                    Settings = surveySession.Settings
+                };
+                await _sessionRepo.AddAsync(session);
+
+                if (surveyOptions is null)
+                    throw new InvalidOperationException("خيارات الاستبيان مطلوبة.");
+
+                int order = 1;
+                foreach (var opt in surveyOptions)
+                {
+                    var o = new VotingOption
+                    {
+                        VotingOptionId = opt.VotingOptionId == Guid.Empty ? Guid.NewGuid() : opt.VotingOptionId,
+                        VotingSessionId = session.VotingSessionId,
+                        Text = (opt.Text ?? string.Empty).Trim(),
+                        OrderIndex = order++
+                    };
+                    await _optionRepo.AddAsync(o);
+                }
+            }
+
+            return entity.EventId;
+        }
+
+        public async Task UpdateEventAsync(
+            EventDto eventDto,
+            VotingSessionDto? surveySession,
+            IEnumerable<VotingOptionDto>? surveyOptions,
+            string? discussionPurpose = null)
+        {
+            var entity = await _eventRepo.GetByIdAsync(eventDto.EventId)
+                         ?? throw new KeyNotFoundException("الفعالية غير موجودة.");
+
+            entity.Title = eventDto.Title?.Trim();
+            entity.Description = eventDto.Description ?? string.Empty;
+            entity.Type = MapEventType(eventDto.TypeName);
+            entity.Status = MapEventStatus(eventDto.StatusName);
+            entity.StartDate = eventDto.StartDate;
+            entity.EndDate = eventDto.EndDate;
+            entity.UpdatedAt = DateTime.UtcNow;
+            entity.AllowProposals = eventDto.AllowProposals;
+            entity.AllowDiscussion = eventDto.AllowDiscussion;
+
+            var st = ReadSettings(entity.Settings);
+            //  merge optional incoming tables if provided via eventDto.Settings
+            var incoming = ReadSettings(eventDto.Settings);
+            if (incoming?.Tables != null) st.Tables = incoming.Tables;
+
+            if (IsSurvey(eventDto.TypeName))
+            {
+                st.SurveyMode = "Poll";
+                st.DiscussionPurpose = null;
+                st.IsMultipleChoice = TryExtractIsMultipleChoice(surveySession?.Settings) ?? st.IsMultipleChoice;
+            }
+            else if (IsDiscussionLike(eventDto.TypeName))
+            {
+                st.DiscussionPurpose = discussionPurpose?.Trim();
+                st.SurveyMode = null;
+                st.IsMultipleChoice = null;
+            }
+            else
+            {
+                st.SurveyMode = null;
+                st.DiscussionPurpose = null;
+                st.IsMultipleChoice = null;
+            }
+            entity.Settings = WriteSettings(st);
+            Console.WriteLine($"[TablesDebug-Save] EventId={entity.EventId} SavedJsonLength={(entity.Settings?.Length ?? 0)}");
+
+            await _eventRepo.UpdateAsync(entity);
+
+            // مزامنة الاستبيان إن وُجد
+            if (IsSurvey(eventDto.TypeName))
+            {
+                var sessions = await _sessionRepo.FindAsync(s => s.EventId == entity.EventId);
+                var session = sessions.FirstOrDefault();
+
+                if (session is null)
+                {
+                    if (surveySession is null)
+                        throw new InvalidOperationException("جلسة الاستبيان مطلوبة.");
+
+                    session = new VotingSession
+                    {
+                        VotingSessionId = surveySession.VotingSessionId == Guid.Empty ? Guid.NewGuid() : surveySession.VotingSessionId,
+                        EventId = entity.EventId,
+                        Title = string.IsNullOrWhiteSpace(surveySession.Title) ? entity.Title : surveySession.Title!.Trim(),
+                        Question = (surveySession.Question ?? string.Empty).Trim(),
+                        StartTime = surveySession.StartTime == default ? entity.StartDate : surveySession.StartTime,
+                        EndTime = surveySession.EndTime,
+                        IsAnonymous = surveySession.IsAnonymous,
+                        Status = MapVotingStatus(surveySession.StatusName),
+                        Settings = surveySession.Settings
+                    };
+                    await _sessionRepo.AddAsync(session);
+                }
+                else
+                {
+                    if (!string.IsNullOrWhiteSpace(surveySession?.Title)) session.Title = surveySession!.Title!.Trim();
+                    if (!string.IsNullOrWhiteSpace(surveySession?.Question)) session.Question = surveySession!.Question!.Trim();
+                    if (surveySession?.StartTime != default) session.StartTime = surveySession!.StartTime;
+                    session.EndTime = surveySession?.EndTime ?? session.EndTime;
+                    session.IsAnonymous = surveySession?.IsAnonymous ?? session.IsAnonymous;
+                    if (!string.IsNullOrWhiteSpace(surveySession?.StatusName))
+                        session.Status = MapVotingStatus(surveySession!.StatusName);
+                    session.Settings = surveySession?.Settings ?? session.Settings;
+
+                    await _sessionRepo.UpdateAsync(session);
+                }
+
+                if (surveyOptions is null)
+                    throw new InvalidOperationException("خيارات الاستبيان مطلوبة.");
+
+                var existing = (await _optionRepo.FindAsync(o => o.VotingSessionId == session.VotingSessionId)).ToList();
+                var existingById = existing.ToDictionary(o => o.VotingOptionId, o => o);
+
+                int order = 1;
+                var receivedIds = new HashSet<Guid>();
+                foreach (var dto in surveyOptions)
+                {
+                    var id = dto.VotingOptionId == Guid.Empty ? Guid.NewGuid() : dto.VotingOptionId;
+                    receivedIds.Add(id);
+
+                    if (existingById.TryGetValue(id, out var ex))
+                    {
+                        ex.Text = (dto.Text ?? string.Empty).Trim();
+                        ex.OrderIndex = order++;
+                        await _optionRepo.UpdateAsync(ex);
+                    }
+                    else
+                    {
+                        var o = new VotingOption
+                        {
+                            VotingOptionId = id,
+                            VotingSessionId = session.VotingSessionId,
+                            Text = (dto.Text ?? string.Empty).Trim(),
+                            OrderIndex = order++
+                        };
+                        await _optionRepo.AddAsync(o);
+                    }
+                }
+
+                // منع حذف خيار عليه أصوات
+                var toDelete = existing.Where(o => !receivedIds.Contains(o.VotingOptionId)).ToList();
+                if (toDelete.Count > 0)
+                {
+                    var voted = await _voteRepo.FindAsync(v =>
+                        v.VotingSessionId == session.VotingSessionId && v.VotingOptionId != null);
+                    var votedIds = voted.Select(v => v.VotingOptionId!.Value).Distinct().ToHashSet();
+
+                    foreach (var del in toDelete)
+                    {
+                        if (votedIds.Contains(del.VotingOptionId))
+                            throw new InvalidOperationException($"لا يمكن حذف الخيار '{del.Text}' لوجود أصوات مرتبطة به.");
+
+                        await _optionRepo.DeleteAsync(del);
+                    }
+                }
+            }
+        }
+
+        public async Task DeleteEventAsync(Guid eventId)
+        {
+            var sessions = (await _sessionRepo.FindAsync(s => s.EventId == eventId)).ToList();
+            foreach (var s in sessions)
+            {
+                var votes = (await _voteRepo.FindAsync(v => v.VotingSessionId == s.VotingSessionId)).ToList();
+                foreach (var v in votes) await _voteRepo.DeleteAsync(v);
+
+                var options = (await _optionRepo.FindAsync(o => o.VotingSessionId == s.VotingSessionId)).ToList();
+                foreach (var o in options) await _optionRepo.DeleteAsync(o);
+
+                await _sessionRepo.DeleteAsync(s);
+            }
+
+            await _eventRepo.DeleteByIdAsync(eventId);
+        }
+    }
+}

@@ -1,0 +1,64 @@
+@{
+    ViewData["Title"] = "إنشاء/ترقية مسؤول";
+}
+
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="mb-0"><i class="fas fa-user-shield me-2"></i>إنشاء/ترقية مسؤول</h2>
+            <p class="text-muted">أدخل البيانات المطلوبة ثم اضغط الزر المناسب</p>
+        </div>
+        <div>
+            <a asp-area="Admin" asp-controller="Dashboard" asp-action="Index" class="btn btn-secondary"><i class="fas fa-arrow-right me-1"></i>عودة</a>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    @if(TempData["Success"] != null)
+    {
+        <div class="alert alert-success"><i class="fas fa-check-circle me-1"></i>@TempData["Success"]</div>
+    }
+    @if(TempData["Error"] != null)
+    {
+        <div class="alert alert-danger"><i class="fas fa-exclamation-circle me-1"></i>@TempData["Error"]</div>
+    }
+
+    <div class="row g-4">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header"><i class="fas fa-plus me-2"></i>إنشاء مسؤول جديد</div>
+                <div class="card-body">
+                    <form asp-area="Admin" asp-controller="Admins" asp-action="CreateNew" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label class="form-label">البريد الإلكتروني <span class="text-danger">*</span></label>
+                            <input name="email" type="email" class="form-control" placeholder="admin@mina.local" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">الاسم (اختياري)</label>
+                            <input name="fullName" type="text" class="form-control" placeholder="الاسم الكامل">
+                        </div>
+                        <button type="submit" class="btn btn-success w-100"><i class="fas fa-user-plus me-1"></i>إنشاء مسؤول</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header"><i class="fas fa-arrow-up me-2"></i>ترقية مستخدم موجود إلى مسؤول</div>
+                <div class="card-body">
+                    <form asp-area="Admin" asp-controller="Admins" asp-action="PromoteUser" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <label class="form-label">البريد الإلكتروني للمستخدم <span class="text-danger">*</span></label>
+                            <input name="email" type="email" class="form-control" placeholder="user@domain.com" required>
+                        </div>
+                        <button type="submit" class="btn btn-dark w-100"><i class="fas fa-user-shield me-1"></i>ترقية إلى مسؤول</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

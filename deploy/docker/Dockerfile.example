@@ -1,0 +1,15 @@
+# Build an image from the publish/ output without changing app code
+# Usage: place this Dockerfile next to the publish/ folder, then:
+#   docker build -t minaevents:latest -f deploy/docker/Dockerfile.example .
+#   docker run -e ASPNETCORE_ENVIRONMENT=Production -p 8080:8080 minaevents:latest
+
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+WORKDIR /app
+# Copy the publish content produced by: dotnet publish -c Release -o ./publish
+COPY publish/ ./
+# Default ASP.NET Core listens on 8080 inside container
+ENV ASPNETCORE_URLS=http://0.0.0.0:8080
+ENV ASPNETCORE_ENVIRONMENT=Production
+EXPOSE 8080
+ENTRYPOINT ["dotnet","RourtPPl01.dll"]
+

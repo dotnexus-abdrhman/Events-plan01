@@ -1,0 +1,50 @@
+@model RourtPPl01.Areas.UserPortal.ViewModels.EventDetailsViewModel
+@* Shared JS needed by both UserPortal and Public details pages *@
+<script>
+(function(){
+  // Image preview modal helper
+  window.showImageModal = function(src, title){
+    const img=document.getElementById('modalImage');
+    const label=document.getElementById('imageModalLabel');
+    if(img){ img.src=src; }
+    if(label){ label.textContent=title||''; }
+    const modalEl=document.getElementById('imageModal');
+    if(modalEl){ new bootstrap.Modal(modalEl).show(); }
+  };
+
+  const requireSig = @(Model.RequireSignature ? "true" : "false");
+  const hasParticipated = @(Model.HasUserParticipated ? "true" : "false");
+
+  const form = document.getElementById('participationForm');
+  const canvas = document.getElementById('signatureCanvas');
+  const dataInput = document.getElementById('signatureData');
+  let pad = null;
+
+  // read-only state if already participated
+  if(hasParticipated && form){
+    form.querySelectorAll('input, textarea, select, button').forEach(el => {
+      if(el.id !== 'btnBack' && el.type !== 'button') { el.disabled = true; }
+    });
+  }
+
+  // setup signature pad if needed
+  if(requireSig && canvas && window.SignaturePad){
+    pad = new SignaturePad(canvas, {backgroundColor: '#fff'});
+    window.clearSignature = function(){ if(pad){ pad.clear(); } if(dataInput){ dataInput.value=''; } };
+  }
+
+  if(form){
+    form.addEventListener('submit', function(e){
+      if(requireSig && pad){
+        if(pad.isEmpty()){
+          e.preventDefault();
+          const alertEl = document.getElementById('signatureAlert');
+          if(alertEl){ alertEl.classList.remove('d-none'); alertEl.textContent='الرجاء توقيع النموذج قبل الإرسال.'; }
+          return;
+        }
+        if(dataInput){ dataInput.value = pad.toDataURL(); }
+      }
+    });
+  }
+})();
+</script>

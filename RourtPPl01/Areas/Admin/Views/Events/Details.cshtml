@@ -1,0 +1,407 @@
+@model EventDetailsViewModel
+@{
+    ViewData["Title"] = "تفاصيل الحدث";
+}
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2 class="mb-0">@Model.Title</h2>
+        <p class="text-muted">@Model.Description</p>
+    </div>
+    <div class="col-md-4 text-start">
+        <a href="/Admin/Events/Edit/@Model.EventId" class="btn btn-warning me-2">
+            <i class="fas fa-edit me-1"></i>تعديل
+        </a>
+        <a asp-area="Admin" asp-controller="EventResults" asp-action="Summary" asp-route-eventId="@Model.EventId" class="btn btn-success me-2">
+            <i class="fas fa-chart-bar me-1"></i>النتائج
+        </a>
+        <a href="/Admin/Events" class="btn btn-secondary">
+            <i class="fas fa-arrow-right me-1"></i>العودة
+        </a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="text-muted">تاريخ البدء</h6>
+                <p class="mb-0"><i class="fas fa-calendar me-2"></i>@Model.StartAt.ToString("yyyy/MM/dd HH:mm")</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="text-muted">تاريخ الانتهاء</h6>
+                <p class="mb-0"><i class="fas fa-calendar me-2"></i>@Model.EndAt.ToString("yyyy/MM/dd HH:mm")</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="text-muted">الحالة</h6>
+                <p class="mb-0">
+                    @if(Model.Status == EventStatus.Active)
+                    {
+                        <span class="badge bg-success">نشط</span>
+                    }
+                    else if(Model.Status == EventStatus.Draft)
+                    {
+                        <span class="badge bg-secondary">مسودة</span>
+                    }
+                    else if(Model.Status == EventStatus.Completed)
+                    {
+                        <span class="badge bg-primary">مكتمل</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-danger">ملغي</span>
+                    }
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="text-muted">التوقيع</h6>
+                <p class="mb-0">
+                    @if(Model.RequireSignature)
+                    {
+                        <i class="fas fa-check-circle text-success me-1"></i><span>مطلوب</span>
+                    }
+                    else
+                    {
+                        <i class="fas fa-times-circle text-muted me-1"></i><span>غير مطلوب</span>
+                    }
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if(Model.Sections.Any())
+{
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="fas fa-list me-2"></i>البنود والقرارات
+        </div>
+        <div class="card-body">
+            @foreach(var sec in Model.Sections.OrderBy(s => s.Order))
+            {
+                <div class="mb-4">
+                    <h5 class="text-primary">@sec.Title</h5>
+                    @if(!string.IsNullOrEmpty(sec.Body))
+                    {
+                        <p class="text-muted">@sec.Body</p>
+                    }
+
+                    @if(sec.Decisions.Any())
+                    {
+                        <div class="ms-4">
+                            @foreach(var decision in sec.Decisions.OrderBy(d => d.Order))
+                            {
+                                <div class="mb-3">
+                                    <h6 class="text-secondary">@decision.Title</h6>
+                                    @if(decision.Items.Any())
+                                    {
+                                        <ol class="mb-0">
+                                            @foreach(var item in decision.Items.OrderBy(i => i.Order))
+                                            {
+                                                <li>@item.Text</li>
+                                            }
+                                        </ol>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <div class="mt-3">
+                        <div class="d-flex flex-wrap gap-2 mb-2">
+                            <button class="btn btn-sm btn-info" type="button" data-bs-toggle="collapse" data-bs-target="#addSurvey-@sec.SectionId"><i class="fas fa-plus me-1"></i>إضافة استبيان للبند</button>
+                            <button class="btn btn-sm btn-success" type="button" data-bs-toggle="collapse" data-bs-target="#addDiscussion-@sec.SectionId"><i class="fas fa-plus me-1"></i>إضافة نقاش للبند</button>
+                            <button class="btn btn-sm btn-warning" type="button" data-bs-toggle="collapse" data-bs-target="#addTable-@sec.SectionId"><i class="fas fa-plus me-1"></i>إضافة جدول للبند</button>
+                            <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="collapse" data-bs-target="#uploadAttachment-@sec.SectionId"><i class="fas fa-upload me-1"></i>رفع مرفق للبند</button>
+                        </div>
+
+                        <div class="collapse" id="addSurvey-@sec.SectionId">
+                            <form asp-area="Admin" asp-controller="EventComponents" asp-action="AddSurvey" method="post" class="js-comp-form border rounded p-3 mb-2">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="EventId" value="@Model.EventId" />
+                                <input type="hidden" name="SectionId" value="@sec.SectionId" />
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-6">
+                                        <label class="form-label">عنوان الاستبيان</label>
+                                        <input type="text" name="Title" class="form-control" required />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="submit" class="btn btn-info w-100">حفظ الاستبيان</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="collapse" id="addDiscussion-@sec.SectionId">
+                            <form asp-area="Admin" asp-controller="EventComponents" asp-action="AddDiscussion" method="post" class="js-comp-form border rounded p-3 mb-2">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="EventId" value="@Model.EventId" />
+                                <input type="hidden" name="SectionId" value="@sec.SectionId" />
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label">عنوان النقاش</label>
+                                        <input type="text" name="Title" class="form-control" required />
+                                    </div>
+                                    <div class="col-md-5">
+                                        <label class="form-label">الغرض (اختياري)</label>
+                                        <input type="text" name="Purpose" class="form-control" />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="submit" class="btn btn-success w-100">حفظ النقاش</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="collapse" id="addTable-@sec.SectionId">
+                            <form asp-area="Admin" asp-controller="EventComponents" asp-action="AddTable" method="post" class="js-comp-form border rounded p-3 mb-2">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="EventId" value="@Model.EventId" />
+                                <input type="hidden" name="SectionId" value="@sec.SectionId" />
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-6">
+                                        <label class="form-label">عنوان الجدول</label>
+                                        <input type="text" name="Title" class="form-control" required />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="submit" class="btn btn-warning w-100">حفظ الجدول</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="collapse" id="uploadAttachment-@sec.SectionId">
+                            <form asp-area="Admin" asp-controller="EventComponents" asp-action="UploadAttachment" method="post" enctype="multipart/form-data" class="js-comp-form border rounded p-3 mb-2">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="EventId" value="@Model.EventId" />
+                                <input type="hidden" name="SectionId" value="@sec.SectionId" />
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-6">
+                                        <label class="form-label">الملف (صورة أو PDF)</label>
+                                        <input type="file" name="File" class="form-control" accept=".jpg,.jpeg,.png,.gif,.pdf" required />
+                                    </div>
+                                    <div class="col-md-3">
+                                        <button type="submit" class="btn btn-primary w-100">رفع المرفق</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="mt-3">
+                        @{
+                            var secSurveys = Model.Surveys.Where(x => x.SectionId == sec.SectionId).ToList();
+                            var secDiscussions = Model.Discussions.Where(x => x.SectionId == sec.SectionId).ToList();
+                            var secTables = Model.Tables.Where(x => x.SectionId == sec.SectionId).ToList();
+                            var secAttachments = Model.Attachments.Where(x => x.SectionId == sec.SectionId).ToList();
+                        }
+                        @if (secSurveys.Any() || secDiscussions.Any() || secTables.Any() || secAttachments.Any())
+                        {
+                            <div class="alert alert-light border">
+                                <div class="small text-muted mb-2">مكونات هذا البند:</div>
+                                @if (secSurveys.Any()) { <div><i class="fas fa-poll me-1 text-info"></i>استبيانات: @secSurveys.Count</div> }
+                                @if (secDiscussions.Any()) { <div><i class="fas fa-comments me-1 text-success"></i>نقاشات: @secDiscussions.Count</div> }
+                                @if (secTables.Any()) { <div><i class="fas fa-table me-1 text-warning"></i>جداول: @secTables.Count</div> }
+                                @if (secAttachments.Any()) { <div><i class="fas fa-paperclip me-1 text-primary"></i>مرفقات: @secAttachments.Count</div> }
+                            </div>
+                        }
+                    </div>
+
+                    <hr>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@if(Model.Surveys.Any())
+{
+    <div class="card mb-4">
+        <div class="card-header bg-info bg-opacity-10">
+            <i class="fas fa-poll me-2"></i>الاستبيانات (@Model.Surveys.Count)
+        </div>
+        <div class="card-body">
+            @foreach(var survey in Model.Surveys)
+            {
+                <h5>@survey.Title</h5>
+                @if(!string.IsNullOrEmpty(survey.Description))
+                {
+                    <p class="text-muted">@survey.Description</p>
+                }
+
+                @foreach(var question in survey.Questions)
+                {
+                    <div class="mb-3">
+                        <h6>@question.Text</h6>
+                        <ul>
+                            @foreach(var option in question.Options)
+                            {
+                                <li>@option.Text</li>
+                            }
+                        </ul>
+                    </div>
+                }
+                <hr>
+            }
+        </div>
+    </div>
+}
+
+@if(Model.Discussions.Any())
+{
+    <div class="card mb-4">
+        <div class="card-header bg-success bg-opacity-10">
+            <i class="fas fa-comments me-2"></i>النقاشات (@Model.Discussions.Count)
+        </div>
+        <div class="card-body">
+            @foreach(var discussion in Model.Discussions)
+            {
+                <h5>@discussion.Title</h5>
+                <p class="text-muted">@discussion.Purpose</p>
+                <hr>
+            }
+        </div>
+    </div>
+}
+
+@if(Model.Tables.Any())
+{
+    <div class="card mb-4">
+        <div class="card-header bg-warning bg-opacity-10">
+            <i class="fas fa-table me-2"></i>الجداول (@Model.Tables.Count)
+        </div>
+        <div class="card-body">
+            @foreach(var table in Model.Tables)
+            {
+                <h5>@table.Title</h5>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm">
+                        @if (table.HasHeader && table.Rows != null && table.Rows.Any())
+                        {
+                            <thead>
+                                <tr>
+                                    @foreach (var cell in table.Rows.First())
+                                    {
+                                        <th>@cell.Value</th>
+                                    }
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in table.Rows.Skip(1))
+                                {
+                                    <tr>
+                                        @foreach (var cell in row)
+                                        {
+                                            <td>@cell.Value</td>
+                                        }
+                                    </tr>
+                                }
+                            </tbody>
+                        }
+                        else
+                        {
+                            <tbody>
+                                @if (table.Rows != null)
+                                {
+                                    @foreach (var row in table.Rows)
+                                    {
+                                        <tr>
+                                            @foreach (var cell in row)
+                                            {
+                                                <td>@cell.Value</td>
+                                            }
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        }
+                    </table>
+                </div>
+                <hr>
+            }
+        </div>
+    </div>
+}
+
+@if(Model.Attachments.Any())
+{
+    <div class="card mb-4">
+        <div class="card-header bg-primary bg-opacity-10">
+            <i class="fas fa-paperclip me-2"></i>المرفقات (@Model.Attachments.Count)
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                @foreach(var attachment in Model.Attachments.OrderBy(a => a.Order))
+                {
+                    @if(attachment.Type == AttachmentType.Image)
+                    {
+                        <div class="col-md-3">
+                            <div class="card">
+                                <img src="@attachment.Path" class="card-img-top" alt="@attachment.FileName" style="height:150px;object-fit:cover">
+                                <div class="card-body p-2 text-center">
+                                    <small>@attachment.FileName</small>
+                                </div>
+                            </div>
+                        </div>
+
+
+                    }
+                    else
+                    {
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-file-pdf fa-3x text-danger mb-2"></i>
+                                    <p class="mb-0"><strong>@attachment.FileName</strong></p>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+}
+
+
+
+@section Scripts {
+    <script>
+        document.addEventListener('submit', async function (e) {
+            const form = e.target;
+            if (form.classList && form.classList.contains('js-comp-form')) {
+                e.preventDefault();
+                try {
+                    const resp = await fetch(form.action, {
+                        method: 'POST',
+                        body: new FormData(form),
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    });
+                    if (resp.ok) {
+                        // إعادة تحميل الصفحة حتى تظهر المكونات الجديدة تحت البند
+                        location.reload();
+                    } else {
+                        alert('فشل الحفظ. الرجاء المحاولة مرة أخرى.');
+                    }
+                } catch (err) {
+                    alert('حدث خطأ في الاتصال بالخادم.');
+                }
+            }
+        });
+    </script>
+}

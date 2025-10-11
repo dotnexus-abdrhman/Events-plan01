@@ -1,0 +1,28 @@
+@{
+    ViewData["Title"] = "الرابط غير صالح";
+}
+<style>
+  .error-card{background:linear-gradient(180deg,#fff5f5,#ffffff);border:1px solid #ffd5d5}
+  .error-icon{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#ffe9e9;color:#dc3545}
+</style>
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-7 col-md-9">
+      <div class="card shadow-sm error-card">
+        <div class="card-body text-center">
+          <div class="error-icon mx-auto mb-3"><i class="fas fa-link-slash fa-lg"></i></div>
+          <h4 class="mb-2">عذراً، هذا الرابط غير متاح</h4>
+          <p class="text-muted">@(ViewBag.Error ?? "الرابط غير صالح")</p>
+          <div class="text-start mx-auto" style="max-width:520px">
+            <ul class="mb-3">
+              <li>قد يكون الرابط <strong>انتهت صلاحيته</strong>.</li>
+              <li>قد يكون الرابط <strong>مُعطَّلاً</strong> من قبل المشرف.</li>
+              <li>أو ربما الرابط <strong>غير صحيح</strong> أو غير كامل.</li>
+            </ul>
+          </div>
+          <!-- تمت إزالة روابط داخلية للضيف الخارجي حسب المتطلبات -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

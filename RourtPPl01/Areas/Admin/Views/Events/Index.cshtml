@@ -1,0 +1,153 @@
+
+@model EventsIndexViewModel
+@{
+    ViewData["Title"] = "الأحداث";
+}
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <h2 class="mb-0"><i class="fas fa-calendar-check me-2"></i>الأحداث</h2>
+        <p class="text-muted">إدارة جميع الأحداث</p>
+    </div>
+    <div class="col-md-6 text-start">
+        <a href="/Admin/Events/Create" class="btn btn-success">
+            <i class="fas fa-plus me-2"></i>إنشاء حدث جديد
+        </a>
+    </div>
+</div>
+<form id="__af" method="post" style="display:none;">
+    @Html.AntiForgeryToken()
+</form>
+
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <input type="text" name="search" class="form-control" placeholder="بحث بالعنوان..." value="@Model.SearchTerm">
+            </div>
+            <div class="col-md-3">
+                <select name="status" class="form-select">
+                    <option value="">جميع الحالات</option>
+                    <option value="1" selected="@(Model.StatusFilter==1)">مسودة</option>
+                    <option value="2" selected="@(Model.StatusFilter==2)">نشط</option>
+                    <option value="3" selected="@(Model.StatusFilter==3)">مكتمل</option>
+                    <option value="4" selected="@(Model.StatusFilter==4)">ملغي</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="date" name="startDate" class="form-control" value="@Model.StartDateFilter?.ToString("yyyy-MM-dd")">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search me-1"></i>بحث
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if(Model.Events.Any())
+{
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>العنوان</th>
+                            <th>الوصف</th>
+                            <th>تاريخ البدء</th>
+                            <th>تاريخ الانتهاء</th>
+                            <th>الحالة</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach(var evt in Model.Events)
+                        {
+                            <tr>
+                                <td><strong>@evt.Title</strong></td>
+                                <td>@(evt.Description?.Length > 50 ? evt.Description.Substring(0, 50) + "..." : evt.Description)</td>
+                                <td>@evt.StartAt.ToString("yyyy/MM/dd")</td>
+                                <td>@evt.EndAt.ToString("yyyy/MM/dd")</td>
+                                <td>
+                                    @if(evt.Status == EventStatus.Active)
+                                    {
+                                        <span class="badge bg-success">نشط</span>
+                                    }
+                                    else if(evt.Status == EventStatus.Draft)
+                                    {
+                                        <span class="badge bg-secondary">مسودة</span>
+                                    }
+                                    else if(evt.Status == EventStatus.Completed)
+                                    {
+                                        <span class="badge bg-primary">مكتمل</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">ملغي</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="/Admin/Events/Details/@evt.EventId" class="btn btn-sm btn-info" title="عرض">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="/Admin/Events/Edit/@evt.EventId" class="btn btn-sm btn-warning" title="تعديل">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a asp-area="Admin" asp-controller="EventResults" asp-action="Summary" asp-route-eventId="@evt.EventId" class="btn btn-sm btn-success" title="النتائج">
+                                            <i class="fas fa-chart-bar"></i>
+                                        </a>
+                                        <button type="button" class="btn btn-sm btn-danger" onclick="deleteEvent('@evt.EventId')" title="حذف">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>لا توجد أحداث حالياً
+    </div>
+}
+
+@section Scripts {
+<script>
+function deleteEvent(id) {
+    if(confirm('هل أنت متأكد من حذف هذا الحدث؟')) {
+        fetch('/Admin/Events/Delete/' + id, {
+            method: 'POST',
+            headers: {
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+            }
+        })
+        .then(async response => {
+            let message = '';
+            let success = false;
+            try {
+                const data = await response.json();
+                message = data?.message || '';
+                success = !!data?.success;
+            } catch {}
+
+            if (response.ok && success) {
+                alert(message || 'تم حذف حدثك بنجاح');
+                location.reload();
+            } else {
+                alert(message || 'حدث خطأ أثناء الحذف');
+            }
+        });
+    }
+}
+</script>
+}
+

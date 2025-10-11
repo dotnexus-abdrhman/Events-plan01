@@ -1,0 +1,207 @@
+@using EvenDAL.Models.Shared.Enums
+@model RourtPPl01.Areas.Admin.ViewModels.EditEventViewModel
+@{
+    ViewData["Title"] = "تعديل حدث";
+}
+
+<h2 class="mb-3">تعديل حدث</h2>
+
+<div class="text-danger" asp-validation-summary="ModelOnly"></div>
+
+<form asp-area="Admin" asp-controller="Events" asp-action="Edit" method="post" asp-route-id="@Model.EventId">
+    @Html.AntiForgeryToken()
+    <input type="hidden" asp-for="EventId" />
+
+    <div class="mb-3">
+        <label asp-for="Title" class="form-label"></label>
+        <input asp-for="Title" class="form-control" />
+        <span class="text-danger" asp-validation-for="Title"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Description" class="form-label"></label>
+        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+        <span class="text-danger" asp-validation-for="Description"></span>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label asp-for="StartAt" class="form-label"></label>
+            <input asp-for="StartAt" class="form-control" type="datetime-local" />
+            <span class="text-danger" asp-validation-for="StartAt"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="EndAt" class="form-label"></label>
+            <input asp-for="EndAt" class="form-control" type="datetime-local" />
+            <span class="text-danger" asp-validation-for="EndAt"></span>
+        </div>
+    </div>
+
+    <div class="form-check my-3">
+        <input class="form-check-input" asp-for="RequireSignature" />
+        <label class="form-check-label" asp-for="RequireSignature"></label>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Status" class="form-label"></label>
+        <select asp-for="Status" class="form-select" asp-items="Html.GetEnumSelectList<EventStatus>()"></select>
+        <span class="text-danger" asp-validation-for="Status"></span>
+    </div>
+
+    <div class="mt-3 d-flex align-items-center gap-2">
+        <button type="submit" class="btn btn-primary">حفظ</button>
+        <a asp-area="Admin" asp-controller="Events" asp-action="Details" asp-route-id="@Model.EventId" class="btn btn-secondary">رجوع</a>
+        <button type="button" id="btnGeneratePublicLink" class="btn btn-outline-primary ms-auto">
+            <i class="fas fa-link me-1"></i>إنشاء رابط مشاركة عام
+        </button>
+    </div>
+</form>
+
+<!-- Public Link Modal -->
+<div class="modal fade" id="publicLinkModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-share-alt me-2"></i>رابط المشاركة العام</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="input-group">
+          <input type="text" class="form-control" id="publicLinkInput" readonly>
+          <button class="btn btn-outline-secondary" type="button" id="copyPublicLinkBtn"><i class="fas fa-copy me-1"></i>نسخ</button>
+        </div>
+        <div id="publicLinkQr" class="d-flex justify-content-center mt-3"></div>
+        <small class="text-muted d-block mt-2">يمكنك مشاركة هذا الرابط عبر البريد أو واتساب، أو مسحه عبر رمز الاستجابة السريعة.</small>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- إدارة الرابط العام -->
+<div class="card mt-4 shadow-sm">
+  <div class="card-body">
+    <div class="d-flex flex-wrap align-items-center gap-3">
+      <div>
+        <div class="text-muted small mb-1">حالة الرابط</div>
+        <span id="publicLinkStatusBadge" class="badge bg-secondary">—</span>
+      </div>
+      <div class="vr d-none d-md-block"></div>
+      <div class="flex-grow-1" style="min-width:260px">
+        <label class="form-label mb-1">تاريخ انتهاء الصلاحية (اختياري)</label>
+        <div class="input-group">
+          <input type="datetime-local" class="form-control" id="publicLinkExpiry" />
+          <button class="btn btn-outline-primary" type="button" id="saveExpiryBtn">
+            <i class="fas fa-save me-1"></i>حفظ الانتهاء
+          </button>
+          <button class="btn btn-outline-secondary" type="button" id="clearExpiryBtn">
+            <i class="fas fa-times me-1"></i>مسح
+          </button>
+        </div>
+      </div>
+      <div class="vr d-none d-md-block"></div>
+      <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="publicLinkToggle">
+        <label class="form-check-label" for="publicLinkToggle">تفعيل/تعطيل</label>
+      </div>
+      <div class="ms-auto">
+        <button type="button" id="btnManagePublicLink" class="btn btn-outline-primary">
+          <i class="fas fa-link me-1"></i>إنشاء/إدارة الرابط
+        </button>
+      </div>
+    </div>
+    <div class="mt-3 small text-truncate">
+      <i class="fas fa-external-link-alt me-1"></i>
+      <a href="#" id="publicLinkUrlAnchor" target="_blank" rel="noopener">—</a>
+    </div>
+  </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script>
+      (function(){
+        const antiforgery = () => document.querySelector('input[name="__RequestVerificationToken"]').value;
+        const eventId = '@Model.EventId';
+
+        const statusBadge = document.getElementById('publicLinkStatusBadge');
+        const toggle = document.getElementById('publicLinkToggle');
+        const expiryInput = document.getElementById('publicLinkExpiry');
+        const urlAnchor = document.getElementById('publicLinkUrlAnchor');
+        const modalEl = document.getElementById('publicLinkModal');
+        const copyBtn = document.getElementById('copyPublicLinkBtn');
+        const modalInput = document.getElementById('publicLinkInput');
+
+        function setStatus(enabled, expiresAt, url){
+          statusBadge.className = 'badge ' + (enabled ? 'bg-success' : 'bg-secondary');
+          statusBadge.textContent = enabled ? 'مفعّل' : 'مُعطّل';
+          toggle.checked = !!enabled;
+          if(expiresAt){
+            const dt = new Date(expiresAt);
+            const pad = n=> n.toString().padStart(2,'0');
+            const v = `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+            expiryInput.value = v;
+          } else {
+            expiryInput.value = '';
+          }
+          if(url){ urlAnchor.textContent = url; urlAnchor.href = url; }
+        }
+
+        async function loadStatus(){
+          try{
+            const res = await fetch(`/Admin/PublicLinks/Status?eventId=${eventId}`);
+            const json = await res.json();
+            if(json?.exists){ setStatus(json.enabled, json.expiresAt, json.url); if(modalInput) modalInput.value = json.url; }
+          }catch{}
+        }
+
+        const openButtons = [document.getElementById('btnGeneratePublicLink'), document.getElementById('btnManagePublicLink')].filter(Boolean);
+        openButtons.forEach(btn=> btn.addEventListener('click', async function(){
+          try{
+            const token = antiforgery();
+            const fd = new FormData(); fd.append('eventId', eventId);
+            const res = await fetch('/Admin/PublicLinks/Generate', { method:'POST', headers:{ 'RequestVerificationToken': token }, body: fd });
+            const json = await res.json();
+            if(json?.success){
+              if(modalInput) modalInput.value = json.url;
+              setStatus(true, null, json.url);
+              const m = new bootstrap.Modal(modalEl); m.show();
+              const qrHost = document.getElementById('publicLinkQr'); if(qrHost){ qrHost.innerHTML=''; try{ if(window.QRCode){ new QRCode(qrHost, { text: json.url, width: 180, height: 180 }); } }catch{} }
+            } else { alert(json?.message || 'تعذر إنشاء الرابط العام'); }
+          }catch(err){ console.error(err); alert('تعذر إنشاء الرابط العام'); }
+        }));
+
+        if(copyBtn){ copyBtn.addEventListener('click', async function(){ const val = modalInput.value; try{ await navigator.clipboard.writeText(val); copyBtn.innerHTML='<i class="fas fa-check me-1"></i>تم النسخ'; setTimeout(()=>copyBtn.innerHTML='<i class="fas fa-copy me-1"></i>نسخ',1500);}catch{} }); }
+
+        if(toggle){
+          toggle.addEventListener('change', async function(){
+            try{
+              const token = antiforgery(); const fd = new FormData(); fd.append('eventId', eventId); fd.append('enabled', toggle.checked);
+              const res = await fetch('/Admin/PublicLinks/Toggle', { method:'POST', headers:{ 'RequestVerificationToken': token }, body: fd });
+              const json = await res.json(); if(json?.success){ setStatus(json.enabled, expiryInput.value ? new Date(expiryInput.value).toISOString() : null, urlAnchor.href); }
+            }catch{}
+          });
+        }
+
+        const saveExpiryBtn = document.getElementById('saveExpiryBtn');
+        const clearExpiryBtn = document.getElementById('clearExpiryBtn');
+        async function saveExpiry(value){
+          try{
+            const token = antiforgery(); const fd = new FormData(); fd.append('eventId', eventId);
+            if(value){ fd.append('expiresAt', new Date(value).toISOString()); }
+            const res = await fetch('/Admin/PublicLinks/SetExpiry', { method:'POST', headers:{ 'RequestVerificationToken': token }, body: fd });
+            const json = await res.json(); if(json?.success){ setStatus(toggle.checked, json.expiresAt, urlAnchor.href); }
+          }catch{}
+        }
+        if(saveExpiryBtn){ saveExpiryBtn.addEventListener('click', ()=> saveExpiry(expiryInput.value)); }
+        if(clearExpiryBtn){ clearExpiryBtn.addEventListener('click', ()=> { expiryInput.value=''; saveExpiry(''); }); }
+
+        loadStatus();
+      })();
+    </script>
+}
+

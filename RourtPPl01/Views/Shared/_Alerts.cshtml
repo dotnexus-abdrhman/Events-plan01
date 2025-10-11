@@ -1,0 +1,25 @@
+﻿@{
+    var ok = TempData["ok"]?.ToString();
+    var err = TempData["err"]?.ToString();
+    var errDetail = TempData["err_detail"]?.ToString();
+}
+<div dir="rtl">
+    @if (!string.IsNullOrWhiteSpace(ok))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @ok
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
+        </div>
+    }
+    @if (!string.IsNullOrWhiteSpace(err))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <div>@err</div>
+            @if (!string.IsNullOrWhiteSpace(errDetail))
+            {
+                <small class="text-muted">@errDetail</small>
+            }
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
+        </div>
+    }
+</div>

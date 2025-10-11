@@ -1,0 +1,27 @@
+@model RourtPPl01.Areas.Admin.ViewModels.ResultsDetailsViewModel
+@{
+    ViewData["Title"] = "تفاصيل النتائج";
+}
+
+<h2 class="mb-3">تفاصيل النتائج</h2>
+
+<p class="text-muted">المعرف: @Model.EventId</p>
+
+@if (Model.UserResponses?.Count > 0)
+{
+    <div class="list-group">
+        @foreach (var r in Model.UserResponses)
+        {
+            <div class="list-group-item">
+                <div><strong>@r.UserName</strong> (@r.UserId)</div>
+                <div>تاريخ الإرسال: @r.SubmittedAt</div>
+                <div>توقيع: @(r.HasSignature ? "نعم" : "لا")</div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="alert alert-info">لا توجد بيانات لعرضها حتى الآن.</div>
+}
+

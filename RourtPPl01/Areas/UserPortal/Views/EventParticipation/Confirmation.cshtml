@@ -1,0 +1,62 @@
+@model ConfirmationViewModel
+@{
+    ViewData["Title"] = "تم الإرسال بنجاح";
+}
+
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card text-center shadow-lg">
+            <div class="card-body py-5">
+                <div class="mb-4">
+                    <i class="fas fa-check-circle fa-5x text-success"></i>
+                </div>
+                
+                <h2 class="text-success mb-3">تم إرسال ردك بنجاح</h2>
+                
+                <p class="text-muted mb-4">
+                    شكراً لمشاركتك في الحدث: <strong>@Model.EventTitle</strong>
+                </p>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    تم حفظ ردودك بنجاح وسيتم مراجعتها من قبل الإدارة
+                </div>
+                
+                <div class="d-grid gap-2 mt-4">
+                    <a href="/UserPortal/MyEvents" class="btn btn-primary btn-lg">
+                        <i class="fas fa-arrow-right me-2"></i>العودة إلى أحداثي
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+// Auto redirect after 5 seconds
+setTimeout(function() {
+    window.location.href = '/UserPortal/MyEvents';
+}, 5000);
+
+// Show toast notification
+if (typeof bootstrap !== 'undefined') {
+    const toastHtml = `
+        <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+            <div class="toast show" role="alert">
+                <div class="toast-header bg-success text-white">
+                    <i class="fas fa-check-circle me-2"></i>
+                    <strong class="me-auto">نجاح</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    تم إرسال ردك بنجاح
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', toastHtml);
+}
+</script>
+}
+

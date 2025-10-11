@@ -1,0 +1,32 @@
+# Copy to /etc/systemd/system/mina.service and edit paths
+[Unit]
+Description=MinaEvents ASP.NET Core App
+After=network.target
+
+[Service]
+WorkingDirectory=/var/www/mina
+# Expose Kestrel on 127.0.0.1:5000; Nginx will reverse proxy
+Environment=ASPNETCORE_ENVIRONMENT=Production
+Environment=ASPNETCORE_URLS=http://127.0.0.1:5000
+ExecStart=/usr/bin/dotnet /var/www/mina/RourtPPl01.dll
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+SyslogIdentifier=mina
+User=www-data
+# Optional hardening (safe defaults):
+# Prevent gaining new privileges
+NoNewPrivileges=true
+# Make system dirs read-only for the service
+ProtectSystem=full
+# Disallow access to users' home directories
+ProtectHome=true
+# Private /tmp and /var/tmp for the service
+PrivateTmp=true
+# Restrict networking if you only need localhost
+#IPAddressDeny=any
+#IPAddressAllow=127.0.0.1
+
+[Install]
+WantedBy=multi-user.target
+

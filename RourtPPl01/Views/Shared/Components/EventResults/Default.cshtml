@@ -1,0 +1,415 @@
+﻿@model EventPl.Dto.EventResultsDto
+@{
+    Layout = null;
+    var hasSurvey = Model.SurveyResults?.Count > 0;
+    var hasDiscussion = Model.Discussion?.Count > 0;
+    var hasProposals = Model.Proposals?.Count > 0;
+}
+
+<div class="card shadow-sm border-0 mt-4" dir="rtl">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 class="m-0"><i class="bi bi-graph-up"></i> نتائج الحدث</h5>
+        <span class="badge bg-light text-dark">@Model.EventTitle</span>
+    </div>
+
+    <div class="card-body">
+        <!-- Summary Cards -->
+        <div class="row g-3 mb-4">
+            <div class="col-12 col-md-4">
+                <div class="card h-100 border-0 shadow-sm">
+                    <div class="card-body text-end">
+                        <div class="text-muted">إجمالي المشاركين</div>
+                        <div class="display-6 fw-bold">@Model.TotalVoters</div>
+                    </div>
+                </div>
+            </div>
+
+            @if (Model.DiscussionCount > 0)
+            {
+                <div class="col-12 col-md-4">
+                    <div class="card h-100 border-0 shadow-sm">
+                        <div class="card-body text-end">
+                            <div class="text-muted">ردود النقاش</div>
+                            <div class="display-6 fw-bold">@Model.DiscussionCount</div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (Model.SurveyResults != null && Model.SurveyResults.Count > 0)
+            {
+                foreach (var q in Model.SurveyResults)
+                {
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <strong class="text-end">@q.Question</strong>
+                                    <span class="badge bg-light text-dark">@q.TotalResponses</span>
+                                </div>
+                                @if (q.Options?.Count > 0)
+                                {
+                                    foreach (var o in q.Options)
+                                    {
+                                        <div class="mb-2">
+                                            <div class="d-flex justify-content-between small"><span>@o.Text</span><span>@o.Count (@o.Percent%)</span></div>
+                                            <div class="progress" style="height: 6px;">
+                                                <div class="progress-bar" role="progressbar" style="width:@o.Percent%"></div>
+                                            </div>
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <ul class="nav nav-tabs" id="resTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-survey" type="button" role="tab">الاستبيان</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-disc" type="button" role="tab">النقاش</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-prop" type="button" role="tab">الاقتراحات</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-users" type="button" role="tab">حسب المستخدم</button>
+            </li>
+        </ul>
+
+        <div class="tab-content p-3 border border-top-0 rounded-bottom">
+            <!-- Survey -->
+            <div class="tab-pane fade show active" id="tab-survey" role="tabpanel">
+                @if (hasSurvey)
+                {
+                    @foreach (var q in Model.SurveyResults!)
+                    {
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <strong>@q.Question</strong>
+                                <span class="text-muted">@q.TypeName · إجابات: @q.TotalResponses</span>
+                            </div>
+
+                            @if (q.Options?.Count > 0)
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-sm align-middle">
+                                        <thead><tr><th>الخيار</th><th style="width:200px">النسبة</th><th>العدد</th></tr></thead>
+                                        <tbody>
+                                            @foreach (var o in q.Options)
+                                            {
+                                                <tr>
+                                                    <td>@o.Text</td>
+                                                    <td>
+                                                        <div class="progress" style="height: 16px;">
+                                                            <div class="progress-bar" role="progressbar" style="width:@o.Percent%;">@o.Percent%</div>
+                                                        </div>
+                                                    </td>
+                                                    <td>@o.Count</td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                            else if (q.TextAnswers?.Count > 0)
+                            {
+                                <ul class="list-group">
+                                    @foreach (var a in q.TextAnswers)
+                                    {
+                                        <li class="list-group-item">@a</li>
+                                    }
+                                </ul>
+                            }
+                            else
+                            {
+                                <p class="text-muted">لا توجد إجابات بعد.</p>
+                            }
+                        </div>
+                        <hr />
+                    }
+                }
+                else
+                {
+                    <p class="text-muted">لا توجد أسئلة استبيان.</p>
+                }
+            </div>
+
+            <!-- Discussion -->
+            <div class="tab-pane fade" id="tab-disc" role="tabpanel">
+                @if (hasDiscussion)
+                {
+                    <div class="list-group">
+                        @foreach (var root in Model.Discussion!)
+                        {
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between">
+                                    <strong>@root.UserName</strong>
+                                    <small class="text-muted">@root.CreatedAt.ToString("yyyy/MM/dd HH:mm")</small>
+                                </div>
+                                <div>@root.Body</div>
+
+                                @if (root.Replies?.Count > 0)
+                                {
+                                    <div class="mt-2 ms-3 border-start ps-3">
+                                        @foreach (var r in root.Replies)
+                                        {
+                                            <div class="mb-2">
+                                                <div class="d-flex justify-content-between">
+                                                    <span><i class="bi bi-reply"></i> <strong>@r.UserName</strong></span>
+                                                    <small class="text-muted">@r.CreatedAt.ToString("yyyy/MM/dd HH:mm")</small>
+                                                </div>
+                                                <div>@r.Body</div>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+
+                    <p class="text-muted">لا يوجد نقاش لهذا الحدث.</p>
+                }
+            </div>
+
+            <!-- Proposals -->
+            <div class="tab-pane fade" id="tab-prop" role="tabpanel">
+                @if (hasProposals)
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead><tr><th>العنوان</th><th>الحالة</th><th>الإعجابات</th><th>العضو</th><th>التاريخ</th></tr></thead>
+                            <tbody>
+                                @foreach (var p in Model.Proposals!)
+                                {
+                                    <tr>
+                                        <td>@p.Title</td>
+                                        <td><span class="badge bg-secondary">@p.Status</span></td>
+                                        <td>@p.Upvotes</td>
+                                        <td>@p.UserName</td>
+                                        <td>@p.CreatedAt.ToString("yyyy/MM/dd HH:mm")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+
+                    <p class="text-muted">لا توجد اقتراحات للورشة.</p>
+                }
+            </div>
+
+            <!-- By User -->
+            <div class="tab-pane fade" id="tab-users" role="tabpanel">
+                @if (Model.UserResponses != null && Model.UserResponses.Count > 0)
+                {
+            <!-- Grouped Table (Users) with search/filter/paging/export) -->
+            <hr />
+            <div class="mt-4" id="groupedUsers" dir="rtl">
+                <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center position-sticky top-0 bg-white py-2" style="z-index:10">
+                    <div class="d-flex gap-2 align-items-center">
+                        <i class="bi bi-people"></i>
+                        <strong>تفاصيل حسب المستخدم</strong>
+                        <span class="text-muted small">(أحدث إرسال أولًا)</span>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <input class="form-control form-control-sm" style="min-width:220px" id="resSearch" placeholder="بحث بالاسم/الهاتف" />
+                        <select class="form-select form-select-sm" id="questionFilter"><option value="">فلترة بالسؤال</option></select>
+                        <select class="form-select form-select-sm" id="optionFilter" disabled><option value="">اختر السؤال أولاً</option></select>
+                        <button class="btn btn-sm btn-outline-secondary" id="exportCsv"><i class="bi bi-download"></i> تصدير CSV</button>
+                    </div>
+                </div>
+
+                <div id="userGroups" class="mt-3">
+                    @if (Model.UserResponses != null && Model.UserResponses.Count > 0)
+                    {
+                        var idx = 0;
+                        foreach (var u in Model.UserResponses)
+                        {
+                            var answersText = string.Join(" | ", (u.Answers ?? new List<EventPl.Dto.UserAnswerDto>()).Select(a => a.Question + ": " + ((a.SelectedOptions != null && a.SelectedOptions.Count > 0) ? string.Join(", ", a.SelectedOptions) : (a.TextAnswer ?? ""))));
+                            <div class="border rounded-3 mb-3 ugroup" data-name="@u.UserName" data-phone="@u.Phone" data-answers="@answersText.ToLower()">
+                                <div class="p-2 px-3 d-flex justify-content-between align-items-center @((idx++ % 2 == 0) ? "bg-light" : "bg-white")">
+                                    <div class="d-flex flex-column text-end">
+                                        <div class="fw-bold">@u.UserName @if(!string.IsNullOrWhiteSpace(u.Phone)){<span class="text-muted"> - @u.Phone</span>}</div>
+                                        <small class="text-muted">آخر نشاط: @u.LastActivityAt.ToString("yyyy/MM/dd HH:mm")</small>
+                                    </div>
+                                    <div class="d-flex align-items-center gap-2">
+                                        @if (!string.IsNullOrWhiteSpace(u.SignatureImageUrl))
+                                        {
+                                            <img src="@u.SignatureImageUrl" alt="توقيع" style="max-height:40px; max-width:160px; object-fit:contain;" />
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(u.SignatureText))
+                                        {
+                                            <a class="btn btn-sm btn-outline-secondary" href="@u.SignatureText" target="_blank" rel="noopener">عرض التوقيع النصي</a>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="p-3">
+                                    @if (u.Answers?.Count > 0)
+                                    {
+                                        <div class="mb-2 fw-semibold">الاستبيان</div>
+                                        <ul class="list-group mb-2">
+                                            @foreach (var a in u.Answers)
+                                            {
+                                                <li class="list-group-item">
+                                                    <div class="mb-1"><strong>@a.Question</strong></div>
+                                                    @if (a.SelectedOptions != null && a.SelectedOptions.Count > 0)
+                                                    {
+                                                        foreach (var t in a.SelectedOptions)
+                                                        {
+                                                            <span class="badge bg-secondary ms-1">@t</span>
+                                                        }
+                                                    }
+                                                    else if (!string.IsNullOrWhiteSpace(a.TextAnswer))
+                                                    {
+                                                        <div class="text-break">@a.TextAnswer</div>
+                                                    }
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+
+                                    @if (u.Discussions?.Count > 0)
+                                    {
+                                        <div class="mb-2 fw-semibold">النقاش</div>
+                                        <ul class="list-group">
+                                            @foreach (var d in u.Discussions.OrderByDescending(x => x.CreatedAt))
+                                            {
+                                                <li class="list-group-item">
+                                                    <div class="small text-muted">
+                                                        نقاش: @d.RootTitle · @d.CreatedAt.ToString("yyyy/MM/dd HH:mm")
+                                                    </div>
+                                                    <div class="text-break" title="@(d.ReplyBody ?? string.Empty)">@((d.ReplyBody?.Length ?? 0) > 220 ? d.ReplyBody!.Substring(0,220) + "..." : (d.ReplyBody ?? string.Empty))</div>
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+
+                                    @if ((u.Answers?.Count ?? 0) == 0 && (u.Discussions?.Count ?? 0) == 0)
+                                    {
+                                        <p class="text-muted">لا توجد تفاصيل.</p>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-4">لا توجد ردود حتى الآن.</div>
+                    }
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mt-3" id="pager" style="display:none">
+                    <button class="btn btn-sm btn-outline-secondary" id="prevPage">السابق</button>
+                    <div class="small"><span id="pageInfo"></span></div>
+                    <button class="btn btn-sm btn-outline-secondary" id="nextPage">التالي</button>
+                </div>
+
+                <script>
+                    (function(){
+                        const results = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(((IEnumerable<EventPl.Dto.SurveyResultDto>)(Model.SurveyResults ?? new List<EventPl.Dto.SurveyResultDto>())).Select(q => new { q.SessionId, q.Question, Options = ((IEnumerable<object>)(q.Options ?? new List<EventPl.Dto.OptionResultDto>())).Select(o => new { OptionId = (Guid?)o.GetType().GetProperty("OptionId")?.GetValue(o), Text = (o.GetType().GetProperty("Text")?.GetValue(o) as string) ?? string.Empty }).ToList() }).ToList()));
+                        const qSel = document.getElementById('questionFilter');
+                        const oSel = document.getElementById('optionFilter');
+                        const sInp = document.getElementById('resSearch');
+                        const container = document.getElementById('userGroups');
+                        const pager = document.getElementById('pager');
+                        const pageInfo = document.getElementById('pageInfo');
+                        const prev = document.getElementById('prevPage');
+                        const next = document.getElementById('nextPage');
+                        const exportBtn = document.getElementById('exportCsv');
+                        let page = 1, pageSize = 10, groups = Array.from(container.querySelectorAll('.ugroup'));
+
+                        // populate question/options
+                        results.forEach(r => {
+                            const opt = document.createElement('option');
+                            opt.value = r.SessionId; opt.textContent = r.Question; qSel.appendChild(opt);
+                        });
+                        qSel.addEventListener('change', () => {
+                            oSel.innerHTML = '<option value="">(كل الخيارات)</option>';
+                            const r = results.find(x => x.SessionId === qSel.value);
+                            if (r && r.Options && r.Options.length){
+                                r.Options.forEach(o => { const op = document.createElement('option'); op.value = o.Text.toLowerCase(); op.textContent = o.Text; oSel.appendChild(op); });
+                                oSel.disabled = false;
+                            } else { oSel.disabled = true; }
+                            apply();
+                        });
+                        oSel.addEventListener('change', apply);
+                        sInp.addEventListener('input', apply);
+
+                        function apply(){
+                            const term = (sInp.value || '').toLowerCase().trim();
+                            const questionSelected = qSel.value || '';
+                            const optionSelected = (oSel.value || '').toLowerCase();
+                            let visible = [];
+                            groups.forEach(g => {
+                                let ok = true;
+                                if (term){
+                                    const name = (g.getAttribute('data-name')||'').toLowerCase();
+                                    const phone = (g.getAttribute('data-phone')||'').toLowerCase();
+                                    const ans = (g.getAttribute('data-answers')||'').toLowerCase();
+                                    ok = name.includes(term) || phone.includes(term) || ans.includes(term);
+                                }
+                                if (ok && questionSelected){
+                                    // naive match: require question text present in answers string
+                                    const qObj = results.find(x => x.SessionId === questionSelected);
+                                    if (qObj){ ok = (g.getAttribute('data-answers')||'').toLowerCase().includes((qObj.Question||'').toLowerCase()); }
+                                }
+                                if (ok && optionSelected){
+                                    ok = (g.getAttribute('data-answers')||'').toLowerCase().includes(optionSelected);
+                                }
+                                g.style.display = ok ? '' : 'none';
+                                if (ok) visible.push(g);
+                            });
+                            // paging
+                            const total = visible.length; const pages = Math.max(1, Math.ceil(total / pageSize));
+                            if (page > pages) page = pages;
+                            pager.style.display = total > pageSize ? '' : 'none';
+                            pageInfo.textContent = `صفحة ${page} من ${pages}`;
+                            visible.forEach((el, i) => {
+                                const start = (page-1)*pageSize; const end = start + pageSize;
+                                el.style.display = (i >= start && i < end) ? '' : 'none';
+                            });
+                            prev.disabled = page <= 1; next.disabled = page >= pages;
+                        }
+                        prev.addEventListener('click', () => { page = Math.max(1, page-1); apply(); });
+                        next.addEventListener('click', () => { page = page + 1; apply(); });
+
+                        exportBtn.addEventListener('click', () => {
+                            const rows = [['Name','Phone','LastActivity','SignatureImage','SignatureText','Details']];
+                            const visibles = Array.from(container.querySelectorAll('.ugroup')).filter(x => x.style.display !== 'none');
+                            visibles.forEach(g => {
+                                const name = g.getAttribute('data-name')||'';
+                                const phone = g.getAttribute('data-phone')||'';
+                                const details = g.getAttribute('data-answers')||'';
+                                const last = (g.querySelector('.text-muted')?.textContent||'').replace('آخر نشاط: ','');
+                                const img = g.querySelector('img')?.getAttribute('src')||'';
+                                const sig = Array.from(g.querySelectorAll('a')).find(a=>a.textContent.includes('التوقيع'))?.getAttribute('href')||'';
+                                rows.push([name, phone, last, img, sig, details]);
+                            });
+                            const csv = rows.map(r => r.map(v => '"' + (String(v).replaceAll('"','""')) + '"').join(',')).join('\n');
+                            const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a'); a.href = url; a.download = 'event_results.csv'; a.click(); URL.revokeObjectURL(url);
+                        });
+
+                        apply();
+                    })();
+                </script>
+            </div>
+
+	            }
+
+
+            </div>
+        </div>
+    </div>
+</div>

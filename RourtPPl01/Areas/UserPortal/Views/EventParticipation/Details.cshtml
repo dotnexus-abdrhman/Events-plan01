@@ -1,0 +1,473 @@
+@model EventDetailsViewModel
+@{
+    ViewData["Title"] = Model.EventTitle;
+}
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2 class="mb-0">@Model.EventTitle</h2>
+        <p class="text-dark">@Model.EventDescription</p>
+        <small class="text-muted">
+            <i class="fas fa-calendar me-1"></i>
+            من @Model.StartAt.ToString("yyyy/MM/dd") إلى @Model.EndAt.ToString("yyyy/MM/dd")
+        </small>
+    </div>
+    <div class="col-md-4 text-start">
+        <a href="/UserPortal/MyEvents" class="btn btn-secondary">
+            <i class="fas fa-arrow-right me-2"></i>العودة
+        </a>
+    </div>
+</div>
+
+<form id="participationForm" method="post" asp-action="Submit">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="EventId" value="@Model.EventId">
+
+    @if(Model.HasUserParticipated)
+    {
+        <div class="alert alert-info mb-3">
+            <i class="fas fa-check-circle me-2"></i>
+            لقد أرسلت مشاركتك سابقاً. العرض أدناه للقراءة فقط.
+        </div>
+    }
+
+    @if(Model.Sections.Any())
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-list me-2"></i>البنود والقرارات
+            </div>
+            <div class="card-body">
+                @foreach(var sec in Model.Sections.OrderBy(s => s.Order))
+                {
+                    <div class="mb-5">
+                        <h5 class="text-primary">@sec.Title</h5>
+                        @if(!string.IsNullOrEmpty(sec.Body))
+                        {
+                            <p class="text-dark">@sec.Body</p>
+                        }
+
+                        @if(sec.Decisions.Any())
+                        {
+                            <div class="ms-4">
+                                @foreach(var decision in sec.Decisions.OrderBy(d => d.Order))
+                                {
+                                    <div class="mb-3">
+                                        <h6 class="text-secondary">@decision.Title</h6>
+                                        @if(decision.Items.Any())
+                                        {
+                                            <ol class="mb-0">
+                                                @foreach(var item in decision.Items.OrderBy(i => i.Order))
+                                                {
+                                                    <li>@item.Text</li>
+                                                }
+                                            </ol>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        @* استبيانات خاصة بالبند *@
+                        @if(sec.Surveys.Any())
+                        {
+                            <div class="card mb-3 border-info">
+                                <div class="card-header bg-info bg-opacity-10">
+                                    <i class="fas fa-poll me-2"></i>استبيانات هذا البند
+                                </div>
+                                <div class="card-body">
+                                    @foreach(var survey in sec.Surveys)
+                                    {
+                                        <h6 class="mb-3">@survey.Title</h6>
+                                        @foreach(var question in survey.Questions)
+                                        {
+                                            <div class="mb-3">
+                                                <label class="form-label fw-bold">@question.Text @if(question.IsRequired){<span class="text-danger">*</span>}</label>
+                                                @if(question.Type == SurveyQuestionType.Single)
+                                                {
+                                                    @foreach(var option in question.Options)
+                                                    {
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="radio" name="SurveyAnswers[@question.SurveyQuestionId]" value="@option.SurveyOptionId" id="sec-@sec.SectionId-opt-@option.SurveyOptionId" required="@question.IsRequired" @(Model.HasUserParticipated?"disabled":"")>
+                                                            <label class="form-check-label" for="sec-@sec.SectionId-opt-@option.SurveyOptionId">@option.Text</label>
+                                                        </div>
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    @foreach(var option in question.Options)
+                                                    {
+                                                        <div class="form-check">
+                                                            <input class="form-check-input" type="checkbox" name="SurveyAnswers[@question.SurveyQuestionId][]" value="@option.SurveyOptionId" id="sec-@sec.SectionId-opt-@option.SurveyOptionId" @(Model.HasUserParticipated?"disabled":"")>
+                                                            <label class="form-check-label" for="sec-@sec.SectionId-opt-@option.SurveyOptionId">@option.Text</label>
+                                                        </div>
+                                                    }
+                                                }
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        @* نقاشات خاصة بالبند *@
+                        @if(sec.Discussions.Any())
+                        {
+                            <div class="card mb-3 border-success">
+                                <div class="card-header bg-success bg-opacity-10">
+                                    <i class="fas fa-comments me-2"></i>نقاشات هذا البند
+                                </div>
+                                <div class="card-body">
+                                    @foreach(var discussion in sec.Discussions)
+                                    {
+                                        <div class="mb-3">
+                                            <h6>@discussion.Title</h6>
+                                            <p class="text-dark">@discussion.Purpose</p>
+                                            <textarea name="DiscussionReplies[@discussion.DiscussionId]" class="form-control" rows="3" placeholder="اكتب ردك هنا..." @(Model.HasUserParticipated?"disabled":"")></textarea>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        @* جداول خاصة بالبند *@
+                        @if(sec.Tables.Any())
+                        {
+                            <div class="card mb-3 border-warning">
+                                <div class="card-header bg-warning bg-opacity-10">
+                                    <i class="fas fa-table me-2"></i>جداول هذا البند
+                                </div>
+                                <div class="card-body">
+                                    @foreach(var table in sec.Tables)
+                                    {
+                                        <h6 class="mb-2">@table.Title</h6>
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered">
+                                                @if (table.HasHeader && table.Rows != null && table.Rows.Any())
+                                                {
+                                                    <thead>
+                                                        <tr>
+                                                            @foreach (var cell in table.Rows.First())
+                                                            {
+                                                                <th>@cell.Value</th>
+                                                            }
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        @foreach (var row in table.Rows.Skip(1))
+                                                        {
+                                                            <tr>
+                                                                @foreach (var cell in row)
+                                                                {
+                                                                    <td>@cell.Value</td>
+                                                                }
+                                                            </tr>
+                                                        }
+                                                    </tbody>
+                                                }
+                                                else
+                                                {
+                                                    <tbody>
+                                                        @if (table.Rows != null)
+                                                        {
+                                                            @foreach (var row in table.Rows)
+                                                            {
+                                                                <tr>
+                                                                    @foreach (var cell in row)
+                                                                    {
+                                                                        <td>@cell.Value</td>
+                                                                    }
+                                                                </tr>
+                                                            }
+                                                        }
+                                                    </tbody>
+                                                }
+                                            </table>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        @* مرفقات خاصة بالبند *@
+                        @if(sec.Attachments.Any())
+                        {
+                            <div class="card mb-3 border-primary">
+                                <div class="card-header bg-primary bg-opacity-10">
+                                    <i class="fas fa-paperclip me-2"></i>مرفقات هذا البند
+                                </div>
+                                <div class="card-body">
+                                    <div class="row g-3">
+                                        @foreach(var attachment in sec.Attachments.OrderBy(a => a.Order))
+                                        {
+                                            @if(attachment.Type == AttachmentType.Image)
+                                            {
+                                                <div class="col-md-3">
+                                                    <div class="card">
+                                                        <img src="@attachment.Path" class="card-img-top" alt="@attachment.FileName" style="height:150px;object-fit:cover;cursor:pointer" onclick="showImageModal('@attachment.Path', '@attachment.FileName')">
+                                                        <div class="card-body p-2 text-center">
+                                                            <small>@attachment.FileName</small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="col-md-4">
+                                                    <div class="card">
+                                                        <div class="card-body">
+                                                            <i class="fas fa-file-pdf fa-2x text-danger mb-2"></i>
+                                                            <p class="mb-2"><strong>@attachment.FileName</strong></p>
+                                                            <a href="@attachment.Path" target="_blank" class="btn btn-sm btn-primary me-2"><i class="fas fa-eye me-1"></i>فتح</a>
+                                                            <a href="@attachment.Path" download class="btn btn-sm btn-secondary"><i class="fas fa-download me-1"></i>تنزيل</a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <hr>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if(Model.Surveys.Any())
+    {
+        <div class="card mb-4">
+            <div class="card-header bg-info bg-opacity-10">
+                <i class="fas fa-poll me-2"></i>الاستبيانات
+            </div>
+            <div class="card-body">
+                @foreach(var survey in Model.Surveys)
+                {
+                    <h5 class="mb-3">@survey.Title</h5>
+                    @if(!string.IsNullOrEmpty(survey.Description))
+                    {
+                        <p class="text-muted">@survey.Description</p>
+                    }
+
+                    @foreach(var question in survey.Questions)
+                    {
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                @question.Text
+                                @if(question.IsRequired)
+                                {
+                                    <span class="text-danger">*</span>
+                                }
+                            </label>
+
+                            @if(question.Type == SurveyQuestionType.Single)
+                            {
+                                @foreach(var option in question.Options)
+                                {
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio"
+                                               name="SurveyAnswers[@question.SurveyQuestionId]"
+                                               value="@option.SurveyOptionId"
+                                               id="option-@option.SurveyOptionId"
+                                               required="@question.IsRequired" @(Model.HasUserParticipated?"disabled":"")>
+                                        <label class="form-check-label" for="option-@option.SurveyOptionId">
+                                            @option.Text
+                                        </label>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                @foreach(var option in question.Options)
+                                {
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox"
+                                               name="SurveyAnswers[@question.SurveyQuestionId][]"
+                                               value="@option.SurveyOptionId"
+                                               id="option-@option.SurveyOptionId" @(Model.HasUserParticipated?"disabled":"")>
+                                        <label class="form-check-label" for="option-@option.SurveyOptionId">
+                                            @option.Text
+                                        </label>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
+                    <hr>
+                }
+            </div>
+        </div>
+    }
+
+    @if(Model.Discussions.Any())
+    {
+        <div class="card mb-4">
+            <div class="card-header bg-success bg-opacity-10">
+                <i class="fas fa-comments me-2"></i>النقاشات
+            </div>
+            <div class="card-body">
+                @foreach(var discussion in Model.Discussions)
+                {
+                    <div class="mb-4">
+                        <h5>@discussion.Title</h5>
+                        <p class="text-muted">@discussion.Purpose</p>
+
+                        <label class="form-label">ردك على النقاش</label>
+                        <textarea name="DiscussionReplies[@discussion.DiscussionId]"
+                                  class="form-control"
+                                  rows="4"
+                                  placeholder="اكتب ردك هنا..." @(Model.HasUserParticipated?"disabled":"")></textarea>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if(Model.Tables.Any())
+    {
+        <div class="card mb-4">
+            <div class="card-header bg-warning bg-opacity-10">
+                <i class="fas fa-table me-2"></i>الجداول
+            </div>
+            <div class="card-body">
+                @foreach(var table in Model.Tables)
+                {
+                    <h5 class="mb-3">@table.Title</h5>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            @if (table.HasHeader && table.Rows != null && table.Rows.Any())
+                            {
+                                <thead>
+                                    <tr>
+                                        @foreach (var cell in table.Rows.First())
+                                        {
+                                            <th>@cell.Value</th>
+                                        }
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var row in table.Rows.Skip(1))
+                                    {
+                                        <tr>
+                                            @foreach (var cell in row)
+                                            {
+                                                <td>@cell.Value</td>
+                                            }
+                                        </tr>
+                                    }
+                                </tbody>
+                            }
+                            else
+                            {
+                                <tbody>
+                                    @if (table.Rows != null)
+                                    {
+                                        @foreach (var row in table.Rows)
+                                        {
+                                            <tr>
+                                                @foreach (var cell in row)
+                                                {
+                                                    <td>@cell.Value</td>
+                                                }
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            }
+                        </table>
+                    </div>
+                    <hr>
+                }
+            </div>
+        </div>
+    }
+
+    @if(Model.Attachments.Any())
+    {
+        <div class="card mb-4">
+            <div class="card-header bg-primary bg-opacity-10">
+                <i class="fas fa-paperclip me-2"></i>المرفقات
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    @foreach(var attachment in Model.Attachments.OrderBy(a => a.Order))
+                    {
+                        @if(attachment.Type == AttachmentType.Image)
+                        {
+                            <div class="col-md-3">
+                                <div class="card">
+                                    <img src="@attachment.Path" class="card-img-top" alt="@attachment.FileName"
+                                         style="height:150px;object-fit:cover;cursor:pointer"
+                                         onclick="showImageModal('@attachment.Path', '@attachment.FileName')">
+                                    <div class="card-body p-2 text-center">
+                                        <small>@attachment.FileName</small>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="col-md-4">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <i class="fas fa-file-pdf fa-3x text-danger mb-2"></i>
+                                        <p class="mb-2"><strong>@attachment.FileName</strong></p>
+                                        <a href="@attachment.Path" target="_blank" class="btn btn-sm btn-primary me-2">
+                                            <i class="fas fa-eye me-1"></i>فتح
+                                        </a>
+                                        <a href="@attachment.Path" download class="btn btn-sm btn-secondary">
+                                            <i class="fas fa-download me-1"></i>تنزيل
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
+    @if(Model.RequireSignature && !Model.HasUserParticipated)
+    {
+        <div class="card mb-4">
+            <div class="card-header bg-danger bg-opacity-10">
+                <i class="fas fa-signature me-2"></i>التوقيع <span class="text-danger">*</span>
+            </div>
+            <div class="card-body">
+                <p class="text-dark">يرجى التوقيع أدناه لتأكيد مشاركتك</p>
+                <div class="border rounded p-2 bg-white" style="height:200px">
+                    <canvas id="signatureCanvas" width="800" height="180" style="width:100%;height:100%;cursor:crosshair"></canvas>
+                </div>
+                <div class="mt-2">
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="clearSignature()">
+                        <i class="fas fa-eraser me-1"></i>مسح التوقيع
+                    </button>
+                </div>
+                <input type="hidden" name="SignatureData" id="signatureData">
+            </div>
+        </div>
+    }
+
+    @if(!Model.HasUserParticipated)
+    {
+        <div class="card">
+            <div class="card-body text-center">
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fas fa-paper-plane me-2"></i>إرسال الردود
+                </button>
+            </div>
+        </div>
+    }
+</form>
+
+@Html.Partial("~/Views/Shared/_ImageModal.cshtml")
+
+@section Scripts {
+    <script src="~/js/signature-pad.js"></script>
+    @Html.Partial("~/Views/Shared/_ParticipationScripts.cshtml", Model)
+}
+

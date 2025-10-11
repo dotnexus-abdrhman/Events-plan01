@@ -1,0 +1,63 @@
+@{
+    ViewData["Title"] = "الدخول كضيف";
+}
+<style>
+  .hero-card{background:linear-gradient(180deg,#f8fbff,#ffffff);border:1px solid #e9f2ff}
+  .hero-icon{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#e7f1ff;color:#0d6efd}
+</style>
+<div class="container py-4">
+  <div class="row justify-content-center">
+    <div class="col-lg-7 col-md-9">
+      <div class="card shadow-sm hero-card">
+        <div class="card-body">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="hero-icon"><i class="fas fa-user-plus fa-lg"></i></div>
+            <div>
+              <h5 class="mb-1">مرحباً بك! شارك في: <strong>@ViewBag.EventTitle</strong></h5>
+              <div class="text-muted small">أدخل بياناتك للمتابعة كمشارك ضيف خارج النظام</div>
+            </div>
+          </div>
+
+          @if(TempData["Error"] != null){<div class="alert alert-danger">@TempData["Error"]</div>}
+
+          <!-- استخدم مسار صريح لتجنّب أي تعارض في التوجيه -->
+          <form method="post" action="/Public/Event/@ViewBag.Token/EnterName" novalidate>
+            @Html.AntiForgeryToken()
+
+            <div class="mb-3">
+              <label class="form-label">الاسم الكامل <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-id-card"></i></span>
+                <input name="fullName" class="form-control" placeholder="اكتب اسمك الثلاثي" required>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">البريد الإلكتروني (اختياري)</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                <input name="email" type="email" class="form-control" placeholder="example@mail.com">
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">الجوال (اختياري)</label>
+              <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                <input name="phone" class="form-control" placeholder="05xxxxxxxx">
+              </div>
+            </div>
+
+            <div class="d-grid gap-2">
+              <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-door-open me-1"></i> المتابعة
+              </button>
+            </div>
+
+            <div class="form-text mt-3">نحترم خصوصيتك، وتُستخدم هذه البيانات فقط لأغراض المشاركة في الحدث.</div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

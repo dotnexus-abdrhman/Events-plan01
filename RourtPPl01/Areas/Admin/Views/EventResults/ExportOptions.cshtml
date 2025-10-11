@@ -1,0 +1,66 @@
+@model RourtPPl01.Areas.Admin.ViewModels.PdfExportOptionsVm
+@{
+    ViewData["Title"] = "تصدير النتائج (PDF)";
+}
+
+<div class="container mt-3">
+    <h3 class="mb-3 text-end">خيارات تصدير النتائج (PDF)</h3>
+
+    <form asp-action="ExportResultsPdf" asp-area="Admin" asp-controller="EventResults" method="post" enctype="multipart/form-data" class="text-end">
+        <input type="hidden" asp-for="EventId" />
+
+        <div class="card mb-3">
+            <div class="card-header">الأقسام</div>
+            <div class="card-body row g-3">
+                <div class="col-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" asp-for="IncludeEventDetails" />
+                        <label class="form-check-label" asp-for="IncludeEventDetails">تفاصيل الحدث</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" asp-for="IncludeSections" />
+                        <label class="form-check-label" asp-for="IncludeSections">الأقسام/الأجندة</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" asp-for="IncludeAttachments" />
+                        <label class="form-check-label" asp-for="IncludeAttachments">المرفقات</label>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" asp-for="IncludeSurveyAndResponses" />
+                        <label class="form-check-label" asp-for="IncludeSurveyAndResponses">الاستبيانات وإجابات المشاركين</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" asp-for="IncludeDiscussions" />
+                        <label class="form-check-label" asp-for="IncludeDiscussions">النقاشات والردود</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" asp-for="IncludeSignatures" />
+                        <label class="form-check-label" asp-for="IncludeSignatures">التوقيعات</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">العلامة التجارية</div>
+            <div class="card-body row g-3">
+                <div class="col-6">
+                    <label class="form-label" asp-for="LogoFile">شعار (اختياري)</label>
+                    <input class="form-control" asp-for="LogoFile" type="file" accept="image/*" />
+                </div>
+                <div class="col-6">
+                    <label class="form-label" asp-for="BrandingFooterText">نص التذييل</label>
+                    <input class="form-control" asp-for="BrandingFooterText" />
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2 justify-content-end">
+            <a asp-action="Summary" asp-route-eventId="@Model.EventId" class="btn btn-outline-secondary">رجوع</a>
+            <button type="submit" class="btn btn-primary">توليد وتحميل PDF</button>
+        </div>
+    </form>
+</div>
+

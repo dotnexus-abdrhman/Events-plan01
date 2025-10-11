@@ -1,0 +1,245 @@
+@model ResultsSummaryViewModel
+@{
+    ViewData["Title"] = "نتائج الحدث";
+}
+
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2 class="mb-0"><i class="fas fa-chart-bar me-2"></i>نتائج الحدث</h2>
+        <p class="text-muted">@Model.EventTitle</p>
+    </div>
+    <div class="col-md-4 text-start">
+        <a class="btn btn-danger me-2" asp-area="Admin" asp-controller="EventResults" asp-action="ExportSummaryPdf" asp-route-eventId="@Model.EventId">
+            <i class="fas fa-file-pdf me-1"></i>تصدير الملخص PDF
+        </a>
+        <a class="btn btn-outline-danger me-2" asp-area="Admin" asp-controller="EventResults" asp-action="ExportDetailedPdf" asp-route-eventId="@Model.EventId">
+            <i class="fas fa-file-pdf me-1"></i>تصدير التفصيلي PDF
+        </a>
+        <a class="btn btn-outline-secondary me-2" asp-area="Admin" asp-controller="EventResults" asp-action="ExportOptions" asp-route-eventId="@Model.EventId">
+            <i class="fas fa-sliders-h me-1"></i>تصدير مخصص
+        </a>
+
+        <form method="get" asp-area="Admin" asp-controller="EventResults" asp-action="ExportUserPdf" class="d-inline-flex align-items-center me-2">
+            <input type="hidden" name="eventId" value="@Model.EventId" />
+            <select id="user-export-select" name="userId" class="form-select form-select-sm me-2" style="width: 220px;">
+                <option value="">اختر مشاركًا...</option>
+                @foreach (var u in Model.UserResponses)
+                {
+                    <option value="@u.UserId">@u.UserName</option>
+                }
+            </select>
+            <button type="submit" class="btn btn-sm btn-outline-primary" @(Model.UserResponses.Any() ? null : "disabled")>
+                <i class="fas fa-file-pdf me-1"></i>تصدير مشارك PDF
+            </button>
+        </form>
+        <a asp-area="Admin" asp-controller="Events" asp-action="Index" class="btn btn-secondary">
+            <i class="fas fa-arrow-right me-1"></i>العودة
+        </a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card text-center" style="border-right:4px solid #4A90E2">
+            <div class="card-body">
+                <i class="fas fa-users fa-3x mb-3" style="color:#4A90E2"></i>
+                <h3 class="mb-0">@Model.Statistics.UniqueParticipants</h3>
+                <p class="text-muted mb-0">مشارك</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card text-center" style="border-right:4px solid #5CB85C">
+            <div class="card-body">
+                <i class="fas fa-poll fa-3x mb-3" style="color:#5CB85C"></i>
+                <h3 class="mb-0">@Model.Statistics.TotalSurveyAnswers</h3>
+                <p class="text-muted mb-0">إجابة استبيان</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card text-center" style="border-right:4px solid #F0AD4E">
+            <div class="card-body">
+                <i class="fas fa-comments fa-3x mb-3" style="color:#F0AD4E"></i>
+                <h3 class="mb-0">@Model.Statistics.TotalDiscussionReplies</h3>
+                <p class="text-muted mb-0">رد نقاش</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card text-center" style="border-right:4px solid #D9534F">
+            <div class="card-body">
+                <i class="fas fa-signature fa-3x mb-3" style="color:#D9534F"></i>
+                <h3 class="mb-0">@Model.Statistics.TotalSignatures</h3>
+                <p class="text-muted mb-0">توقيع</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="fas fa-poll me-2"></i>نتائج الاستبيانات
+    </div>
+    <div class="card-body">
+        @if(Model.SurveyResults.Any())
+        {
+            @foreach(var survey in Model.SurveyResults)
+            {
+                <h5 class="mb-3">@survey.SurveyTitle</h5>
+                @foreach(var question in survey.Questions)
+                {
+                    <div class="mb-4">
+                        <h6 class="text-secondary">@question.QuestionText</h6>
+                        <p class="small text-muted">إجمالي الإجابات: @question.TotalAnswers</p>
+                        @foreach(var option in question.Options)
+                        {
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span>@option.OptionText</span>
+                                    <span class="badge bg-primary">@option.Count (@option.Percentage.ToString("F1")%)</span>
+                                </div>
+                                <div class="progress" style="height:25px">
+                                    <div class="progress-bar" role="progressbar"
+                                         style="width:@option.Percentage%"
+                                         aria-valuenow="@option.Percentage"
+                                         aria-valuemin="0"
+                                         aria-valuemax="100">
+                                        @option.Percentage.ToString("F1")%
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <hr>
+                }
+            }
+        }
+        else
+        {
+            <div class="text-muted">لا توجد نتائج استبيانات متاحة بعد.</div>
+        }
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <i class="fas fa-table me-2"></i>تفاصيل المشاركات
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>المشارك</th>
+                        <th>وقت المشاركة</th>
+                        <th>الاستبيانات</th>
+                        <th>النقاشات</th>
+                        <th>المكونات</th>
+                        <th>التوقيع</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach(var response in Model.UserResponses)
+                    {
+                        <tr>
+                            <td><strong>@response.UserName</strong> @if(response.IsGuest){<span class="badge bg-secondary ms-2">ضيف</span>}</td>
+                            <td>@response.SubmittedAt.ToString("yyyy/MM/dd HH:mm")</td>
+                            <td>
+                                @if(response.SurveyAnswers.Any())
+                                {
+                                    @foreach(var answer in response.SurveyAnswers)
+                                    {
+                                        <div class="mb-2">
+                                            <small class="text-muted d-block">@answer.QuestionText</small>
+                                            @foreach(var choice in answer.SelectedOptions)
+                                            {
+                                                <span class="badge bg-info me-1">@choice</span>
+                                            }
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td>
+                                @if(response.DiscussionReplies.Any())
+                                {
+                                    @foreach(var reply in response.DiscussionReplies)
+                                    {
+                                        <div class="mb-2">
+                                            <small class="text-muted d-block">@reply.DiscussionTitle</small>
+                                            <p class="mb-0 small">@reply.ReplyText</p>
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                @if(response.HasSurveyAnswers)
+                                {
+                                    <i class="fas fa-poll text-info me-2" title="استبيان"></i>
+                                }
+                                @if(response.HasDiscussionReplies)
+                                {
+                                    <i class="fas fa-comments text-success me-2" title="نقاش"></i>
+                                }
+                                @if(response.HasTableData)
+                                {
+                                    <i class="fas fa-table text-warning me-2" title="جدول"></i>
+                                }
+                            </td>
+                            <td class="text-center">
+                                @if(response.HasSignature)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                            onclick="showSignature('@response.SignaturePath')">
+                                        <i class="fas fa-signature me-1"></i>عرض
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="signatureModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">التوقيع</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img id="signatureImage" src="" class="img-fluid border rounded">
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function showSignature(path) {
+    document.getElementById('signatureImage').src = path;
+    new bootstrap.Modal(document.getElementById('signatureModal')).show();
+}
+
+
+</script>
+}
+
