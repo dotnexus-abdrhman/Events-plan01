@@ -46,12 +46,61 @@
                     <span asp-validation-for="Description" class="text-danger small"></span>
                 </div>
                 <div class="col-md-6">
-                    <label asp-for="OrganizationId" class="form-label">الجهة <span class="text-danger">*</span></label>
-                    <select asp-for="OrganizationId" asp-items="Model.Organizations" class="form-select">
-                        <option value="">-- اختر الجهة --</option>
+                    <label class="form-label">الجمهور</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="SendToAllUsers" id="audAll" value="true" @(Model.SendToAllUsers ? "checked" : null) />
+                        <label class="form-check-label" for="audAll">إرسال إلى جميع المستخدمين في النظام</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="SendToAllUsers" id="audGroup" value="false" @(!Model.SendToAllUsers ? "checked" : null) />
+                        <label class="form-check-label" for="audGroup">إرسال إلى مجموعة معينة</label>
+                    </div>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" name="SendToSpecificUsers" id="audIndividuals" value="true" />
+                            <label class="form-check-label" for="audIndividuals">إرسال لمستخدمين محددين (إخفاء الحدث عن بقية أعضاء المجموعة)</label>
+                        </div>
+
+                </div>
+
+                <div class="col-md-6" id="orgSelectWrap">
+                    <label class="form-label">المجموعة <span id="orgReqStar" class="text-danger" style="display:none">*</span></label>
+                    <select asp-for="OrganizationId" asp-items="Model.Organizations" class="form-select" id="OrganizationId">
+                        <option value="">-- اختر المجموعة --</option>
                     </select>
                     <span asp-validation-for="OrganizationId" class="text-danger small"></span>
                 </div>
+                <div class="col-md-6" id="usersSelectWrap" style="display:none">
+                    <label class="form-label">المستخدمون المستهدفون</label>
+                    <!-- نحافظ على الـ select الأصلي للـ model binding لكن نخفيه ونزامنه مع واجهة منسدلة مخصصة -->
+                    <select asp-for="InvitedUserIds" asp-items="Model.Users" class="form-select d-none" id="InvitedUserIds" multiple></select>
+
+                    <!-- صندوق البحث -->
+                    <div class="mb-2">
+                        <input type="search" class="form-control" id="userSearch" placeholder="ابحث بالاسم أو الهاتف أو البريد">
+                    </div>
+
+                    <!-- العداد وإلغاء الكل -->
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <small class="text-muted" id="usersSelectedCount">تم اختيار 0 مستخدم</small>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="clearAllUsers" title="إلغاء جميع الاختيارات">إلغاء الكل</button>
+                    </div>
+
+                    <!-- قائمة المستخدمين مع Checkboxes -->
+                    <div id="usersList" class="list-group overflow-auto border" style="max-height:320px;">
+                        @foreach (var u in Model.Users ?? Enumerable.Empty<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>())
+                        {
+                            var isSelected = u.Selected;
+                            <label class="list-group-item d-flex align-items-center gap-2">
+                                <input type="checkbox" class="form-check-input user-checkbox" value="@u.Value" @(isSelected ? "checked" : null) data-text="@u.Text" />
+                                <span class="flex-grow-1">@u.Text</span>
+                            </label>
+                        }
+                    </div>
+
+                    <div class="form-text">اختر مستخدمًا واحدًا أو أكثر. في حال تحديد مستخدمين، سيظهر الحدث لهم فقط.</div>
+                </div>
+
+
 
 
                 <div class="col-md-6">
@@ -126,13 +175,57 @@
                     <li><a class="dropdown-item" href="#" onclick="return openFilePickerById('pdfUpload', event);">
                         <i class="fas fa-file-pdf me-2"></i>PDF
                     </a></li>
+                    <li><a class="dropdown-item" href="#" onclick="return openFilePickerById('customPdfUpload', event);">
+                        <i class="fas fa-file-pdf me-2"></i>PDF مخصص
+                    </a></li>
                 </ul>
             </div>
         </div>
         <div class="card-body">
             <div id="componentsContainer">
+
+    <script>
+        (function(){
+            const all = document.getElementById('audAll');
+            const grp = document.getElementById('audGroup');
+            const individuals = document.getElementById('audIndividuals');
+            const orgWrap = document.getElementById('orgSelectWrap');
+            const orgSelect = document.getElementById('OrganizationId');
+            const star = document.getElementById('orgReqStar');
+            const usersWrap = document.getElementById('usersSelectWrap');
+
+            function sync(){
+                const sendAll = !!(all && all.checked);
+                const sendIndividuals = !!(individuals && individuals.checked);
+
+                if (sendAll){
+                    if (usersWrap) usersWrap.style.display = 'none';
+                    if (orgWrap) orgWrap.style.opacity = 0.5;
+                    if (orgSelect){ orgSelect.setAttribute('disabled','disabled'); orgSelect.removeAttribute('required'); }
+                    if (star) star.style.display = 'none';
+                } else if (sendIndividuals){
+                    if (usersWrap) usersWrap.style.display = '';
+                    if (orgWrap) orgWrap.style.opacity = 0.5;
+                    if (orgSelect){ orgSelect.setAttribute('disabled','disabled'); orgSelect.removeAttribute('required'); }
+                    if (star) star.style.display = 'none';
+                } else {
+                    if (usersWrap) usersWrap.style.display = 'none';
+                    if (orgWrap) orgWrap.style.opacity = 1;
+                    if (orgSelect){ orgSelect.removeAttribute('disabled'); orgSelect.setAttribute('required','required'); }
+                    if (star) star.style.display = '';
+                }
+            }
+
+            if (all) all.addEventListener('change', sync);
+            if (grp) grp.addEventListener('change', sync);
+            if (individuals) individuals.addEventListener('change', sync);
+            sync();
+        })();
+    </script>
+
                 <p class="text-muted text-center">لا توجد مكونات. اضغط "إضافة مكوّن" للبدء.</p>
             </div>
+            <input type="file" id="customPdfUpload" accept=".pdf" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" onchange="handleCustomPdfUpload(this)">
 
             <input type="file" id="imageUpload" accept="image/*" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" onchange="handleImageUpload(this)">
             <input type="file" id="pdfUpload" accept=".pdf" multiple style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" onchange="handlePdfUpload(this)">
@@ -176,8 +269,8 @@
             function collectBuilderPayload() {
                 const sections = [];
                 document.querySelectorAll('#sectionsContainer .section-item').forEach(sec => {
-                    const title = sec.querySelector('input[name$=".Title"]')?.value?.trim() || '';
-                    const body = sec.querySelector('textarea[name$=".Body"]')?.value?.trim() || '';
+                    const title = sec.querySelector('.section-title')?.value?.trim() || '';
+                    const body = sec.querySelector('.section-body')?.value?.trim() || '';
                     const decisions = [];
                     sec.querySelectorAll('.decision-item').forEach(dec => {
                         const dTitle = dec.querySelector('input')?.value?.trim() || '';
@@ -297,11 +390,102 @@
                 document.querySelectorAll('#componentsContainer .component-item[data-type="pdf"] input[type="hidden"]').forEach(h => {
                     if (h.value) pdfs.push(h.value);
                 });
+                const customPdfs = [];
+                document.querySelectorAll('#componentsContainer .component-item[data-type="custompdf"] input[type="hidden"]').forEach(h => {
+                    if (h.value) customPdfs.push(h.value);
+                });
 
-                return { sections, surveys, discussions, tables, images, pdfs };
+                return { sections, surveys, discussions, tables, images, pdfs, customPdfs };
             }
         })();
     </script>
+    <script>
+        // واجهة اختيار المستخدمين (بحث + تحديد متعدد) مع مزامنة للـ select المخفي
+        (function(){
+            function setupUserPicker(rootId, selectId){
+                const root = document.getElementById(rootId);
+                const select = document.getElementById(selectId);
+                if(!root || !select) return;
+                const list = root.querySelector('#usersList');
+                const search = root.querySelector('#userSearch');
+                const countEl = root.querySelector('#usersSelectedCount');
+                const clearBtn = root.querySelector('#clearAllUsers');
+
+                // تحسين الإتاحة: تحديث العداد عبر aria-live
+                if (countEl && !countEl.hasAttribute('aria-live')) countEl.setAttribute('aria-live', 'polite');
+
+                // تجنب الاعتماد على CSS.escape واستخدام مزامنة آمنة مع select
+                function setOptionSelected(val, sel){
+                    if(!select) return;
+                    const opts = select.options ? Array.from(select.options) : [];
+                    for (let i = 0; i < opts.length; i++){
+                        if (opts[i].value === String(val)) { opts[i].selected = !!sel; return; }
+                    }
+                }
+
+                function refreshCount(){
+                    const c = root.querySelectorAll('.user-checkbox:checked').length;
+                    if (countEl) countEl.textContent = `تم اختيار ${c} مستخدم`;
+                }
+
+                // تهيئة بيانات العناصر لبحث أسرع (يدعم 100+ عنصر بسلاسة)
+                const items = Array.from(list ? list.querySelectorAll('.list-group-item') : []).map(li => {
+                    const cb = li.querySelector('.user-checkbox');
+                    return { li, cb, text: (cb?.getAttribute('data-text') || '').toLowerCase() };
+                });
+
+                // حالة عدم وجود مستخدمين
+                if (list && items.length === 0) {
+                    const empty = document.createElement('div');
+                    empty.className = 'text-muted small p-2';
+                    empty.textContent = 'لا يوجد مستخدمون نشطون.';
+                    list.appendChild(empty);
+                }
+
+                // تهيئة الحالة الأولية ومُعالجات الأحداث
+                items.forEach(({ cb }) => {
+                    if(!cb) return;
+                    if (cb.checked) setOptionSelected(cb.value, true);
+                    cb.addEventListener('change', function(){ setOptionSelected(cb.value, cb.checked); refreshCount(); });
+                });
+
+                // إلغاء الكل + مزامنة كاملة مع select
+                if(clearBtn){
+                    clearBtn.addEventListener('click', function(){
+                        items.forEach(({ cb }) => { if(cb){ cb.checked = false; setOptionSelected(cb.value, false); } });
+                        // ضمان مسح جميع الخيارات المحددة في select تحسباً لاختلاف الحالة
+                        Array.from(select.options || []).forEach(o => { o.selected = false; });
+                        refreshCount();
+                    });
+                }
+
+                // البحث الفوري (مع debouncing خفيف لتحسين الأداء)
+                let searchTimer = null;
+                function applyFilter(q){
+                    const query = (q || '').trim().toLowerCase();
+                    if (items.length === 0) return;
+                    let visibleCount = 0;
+                    items.forEach(({ li, text }) => {
+                        const show = query === '' || text.includes(query);
+                        if (li) li.style.display = show ? '' : 'none';
+                        if (show) visibleCount++;
+                    });
+                }
+                if(search){
+                    search.addEventListener('input', function(){
+                        if (searchTimer) clearTimeout(searchTimer);
+                        const val = search.value;
+                        // 75ms كافية لتصفية 100+ عنصر بدون تقطيع، وتبقى "فورية" بصرياً
+                        searchTimer = setTimeout(() => applyFilter(val), 75);
+                    }, { passive: true });
+                }
+
+                refreshCount();
+            }
+            document.addEventListener('DOMContentLoaded', function(){ setupUserPicker('usersSelectWrap','InvitedUserIds'); });
+        })();
+    </script>
+
     <partial name="_ValidationScriptsPartial" />
     <script src="~/js/event-builder.js"></script>
 }

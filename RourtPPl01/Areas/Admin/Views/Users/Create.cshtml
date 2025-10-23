@@ -45,17 +45,15 @@
                     <input asp-for="Form.Phone" class="form-control" placeholder="0500000000" />
                 </div>
                 <div class="col-md-6">
-                    <label asp-for="Form.OrganizationId" class="form-label">الجهة <span class="text-danger">*</span></label>
+                    <label asp-for="Form.OrganizationId" class="form-label">المجموعة (اختياري)</label>
                     <select asp-for="Form.OrganizationId" class="form-select" asp-items="@(new SelectList(Model.Organizations, nameof(RourtPPl01.Areas.Admin.ViewModels.OrgItem.OrganizationId), nameof(RourtPPl01.Areas.Admin.ViewModels.OrgItem.Name)))">
-                        <option value="">-- اختر الجهة --</option>
+                        <option value="">-- اختر مجموعة (اختياري) --</option>
                     </select>
-                    <span asp-validation-for="Form.OrganizationId" class="text-danger"></span>
+                    <!-- لم يعد حقل المجموعة مطلوباً -->
                 </div>
                 <div class="col-md-6">
                     <label asp-for="Form.RoleName" class="form-label">الدور</label>
-                    <select asp-for="Form.RoleName" class="form-select">
-                        @foreach (var r in Model.Roles) { <option value="@r">@r</option> }
-                    </select>
+                    <select asp-for="Form.RoleName" class="form-select" asp-items="Model.Roles"></select>
                 </div>
                 <div class="col-md-6 d-flex align-items-end">
                     <div class="form-check">

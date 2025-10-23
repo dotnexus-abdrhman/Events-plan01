@@ -9,8 +9,8 @@ namespace EventPresentationlayer.ViewModels
     {
         public Guid? UserId { get; set; }
 
-        [Required(ErrorMessage = "اختيار الجهة مطلوب.")]
-        [Display(Name = "الجهة")]
+        [Required(ErrorMessage = "اختيار المجموعة مطلوب.")]
+        [Display(Name = "المجموعة")]
         public Guid OrganizationId { get; set; }
 
         [Required(ErrorMessage = "الاسم مطلوب.")]

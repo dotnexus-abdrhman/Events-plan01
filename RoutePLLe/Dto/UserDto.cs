@@ -12,8 +12,8 @@ namespace EventPl.Dto
         [Required]
         public Guid UserId { get; set; }
 
-        [Required]
-        public Guid OrganizationId { get; set; }
+        // اختيار المجموعة اختياري
+        public Guid? OrganizationId { get; set; }
 
         [Required, StringLength(100)]
         public string FullName { get; set; }

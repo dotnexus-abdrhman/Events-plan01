@@ -29,6 +29,7 @@ namespace EventPl.Factory
                 CreatedAt = e.CreatedAt,
                 UpdatedAt = e.UpdatedAt,
                 RequireSignature = e.RequireSignature,
+                IsBroadcast = e.IsBroadcast,
                 AllowProposals = false, // للتوافق مع الكود القديم
                 AllowDiscussion = false // للتوافق مع الكود القديم
             };
@@ -46,7 +47,8 @@ namespace EventPl.Factory
                 EndAt = d.EndAt,
                 CreatedAt = d.CreatedAt == default ? DateTime.UtcNow : d.CreatedAt,
                 UpdatedAt = d.UpdatedAt,
-                RequireSignature = d.RequireSignature
+                RequireSignature = d.RequireSignature,
+                IsBroadcast = d.IsBroadcast
             };
             if (TryParseIgnoreCase<EventStatus>(d.StatusName, out var st)) e.Status = st;
             return e;

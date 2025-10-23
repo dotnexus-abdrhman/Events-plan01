@@ -12,14 +12,22 @@
 
 <div class="card">
     <div class="card-body">
+        <div class="mb-3">
+            <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                <input type="search" id="userSearch" class="form-control" placeholder="ابحث بالاسم أو البريد أو الهاتف أو أي حقل ظاهر في الجدول">
+            </div>
+        </div>
         <div class="table-responsive">
-            <table class="table table-hover align-middle">
+            <table class="table table-hover align-middle" id="usersTable">
                 <thead>
                     <tr>
+                        <th class="text-muted" style="width:56px">#</th>
                         <th>الاسم الكامل</th>
                         <th>البريد الإلكتروني</th>
                         <th>رقم الجوال</th>
-                        <th>الجهة</th>
+                        <th>المجموعة</th>
+
                         <th>الدور</th>
                         <th>الحالة</th>
                         <th>تاريخ الإنشاء</th>
@@ -27,15 +35,17 @@
 
                     </tr>
                 </thead>
+                @{ var rowIndex = 0; }
                 <tbody>
                 @foreach (var u in Model.Users)
                 {
                     <tr>
+                        <td class="text-muted">@(++rowIndex)</td>
                         <td>@u.FullName</td>
                         <td>@u.Email</td>
                         <td>@u.Phone</td>
                         <td>@u.OrganizationName</td>
-                        <td>@u.RoleName</td>
+                        <td>@(u.RoleName switch { "Admin" => "المدير التنفيذي", "Organizer" => "عضو مجلس إدارة", "Attendee" => "عضو", "Observer" => "مراقب", _ => u.RoleName })</td>
                         <td>
                             @if(u.IsActive)
                             {
@@ -59,6 +69,7 @@
                                     </button>
                                 </form>
                             </div>
+
                         </td>
                     </tr>
                 }
@@ -67,4 +78,27 @@
         </div>
     </div>
 </div>
+<script>
+(function(){
+  const input = document.getElementById('userSearch');
+  const table = document.getElementById('usersTable');
+  if(!input || !table) return;
+  const tbody = table.tBodies && table.tBodies[0];
+  const rows = Array.from(tbody ? tbody.rows : []);
+  const cache = rows.map(r => ({ row: r, text: (r.innerText || '').toLowerCase() }));
+  let timer = null;
+  function applyFilter(q){
+    const query = (q || '').trim().toLowerCase();
+    cache.forEach(({row, text}) => {
+      row.style.display = (query === '' || text.includes(query)) ? '' : 'none';
+    });
+  }
+  input.addEventListener('input', function(){
+    if (timer) clearTimeout(timer);
+    const val = this.value;
+    timer = setTimeout(() => applyFilter(val), 75);
+  }, { passive: true });
+})();
+</script>
+
 

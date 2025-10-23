@@ -8,7 +8,7 @@ using System.Security.Claims;
 namespace RourtPPl01.Areas.Admin.Controllers
 {
     [Area("Admin")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "PlatformAdmin")]
     public class EventSectionsController : Controller
     {
         private readonly ISectionsService _sectionsService;
@@ -298,7 +298,7 @@ namespace RourtPPl01.Areas.Admin.Controllers
             var orgId = GetOrganizationId();
             var eventDto = await _eventsService.GetEventByIdAsync(eventId);
             // اسمح للمشرف (Admin) دائمًا
-            if (User.IsInRole("Admin")) return eventDto != null;
+            if (User.IsInRole("PlatformAdmin")) return eventDto != null;
             return eventDto != null && eventDto.OrganizationId == orgId;
         }
 

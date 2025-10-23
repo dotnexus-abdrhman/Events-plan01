@@ -1,0 +1,53 @@
+@model RourtPPl01.Areas.Public.ViewModels.VerifyViewModel
+@{
+    ViewData["Title"] = "التحقق من صحة الملف";
+}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    @if (Model != null && Model.IsFound)
+                    {
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="fa-solid fa-circle-check text-success me-2" style="font-size: 1.5rem;"></i>
+                            <h3 class="m-0">تم اعتماد هذا الملف من قبل منصة مينا وتم التصديق على صحته</h3>
+                        </div>
+
+                        <p class="text-muted mb-4">
+                            هذا المستند صادر عن منصة مينا وتم توليده رقمياً. يتضمن معرف تحقق فريد يمكّنك من التأكد من صحته ومصدره الرسمي.
+                        </p>
+
+                        <dl class="row mb-0">
+                            <dt class="col-sm-3">نوع الملف</dt>
+                            <dd class="col-sm-9">@Model.PdfType</dd>
+
+                            <dt class="col-sm-3">تاريخ الإصدار</dt>
+                            <dd class="col-sm-9">@Model.ExportedAtUtc.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</dd>
+
+                            <dt class="col-sm-3">الرقم المرجعي</dt>
+                            <dd class="col-sm-9"><code>@Model.VerificationId</code></dd>
+                        </dl>
+
+                        <div class="mt-4">
+                            <a class="btn btn-success" href="@Model.VerificationUrl" target="_blank">
+                                <i class="fa-solid fa-up-right-from-square me-1"></i>
+                                فتح رابط التحقق
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="d-flex align-items-center mb-3">
+                            <i class="fa-solid fa-triangle-exclamation text-danger me-2" style="font-size: 1.5rem;"></i>
+                            <h3 class="m-0">تعذر إتمام عملية التحقق</h3>
+                        </div>
+                        <p class="text-danger">@(Model?.ErrorMessage ?? "لم يتم العثور على سجل التحقق")</p>
+                        <p class="text-muted mb-0">الرقم المرجعي: <code>@Model?.VerificationId</code></p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

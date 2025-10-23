@@ -7,7 +7,7 @@ using System.Security.Claims;
 namespace RourtPPl01.Areas.Admin.Controllers
 {
     [Area("Admin")]
-    [Authorize(Roles = "Admin")] // Only admins can generate/toggle public links
+    [Authorize(Roles = "PlatformAdmin")] // Only platform admins can generate/toggle public links
     public class PublicLinksController : Controller
     {
         private readonly AppDbContext _db;
@@ -30,7 +30,7 @@ namespace RourtPPl01.Areas.Admin.Controllers
                 if (ev == null) return NotFound(new { message = "الحدث غير موجود" });
 
                 // Allow platform Admin to manage any event
-                if (!User.IsInRole("Admin") && ev.OrganizationId != orgId)
+                if (!User.IsInRole("PlatformAdmin") && ev.OrganizationId != orgId)
                     return Forbid();
 
                 var link = await _db.EventPublicLinks.FirstOrDefaultAsync(x => x.EventId == eventId);
@@ -74,7 +74,7 @@ namespace RourtPPl01.Areas.Admin.Controllers
                 var orgId = GetOrganizationId();
                 var ev = await _db.Events.AsNoTracking().FirstOrDefaultAsync(e => e.EventId == eventId);
                 if (ev == null) return NotFound(new { message = "الحدث غير موجود" });
-                if (!User.IsInRole("Admin") && ev.OrganizationId != orgId) return Forbid();
+                if (!User.IsInRole("PlatformAdmin") && ev.OrganizationId != orgId) return Forbid();
 
                 var link = await _db.EventPublicLinks.FirstOrDefaultAsync(x => x.EventId == eventId);
                 if (link == null) return NotFound(new { message = "لا يوجد رابط عام لهذا الحدث" });
@@ -118,7 +118,7 @@ namespace RourtPPl01.Areas.Admin.Controllers
                 var orgId = GetOrganizationId();
                 var ev = await _db.Events.AsNoTracking().FirstOrDefaultAsync(e => e.EventId == eventId);
                 if (ev == null) return NotFound(new { message = "الحدث غير موجود" });
-                if (!User.IsInRole("Admin") && ev.OrganizationId != orgId) return Forbid();
+                if (!User.IsInRole("PlatformAdmin") && ev.OrganizationId != orgId) return Forbid();
 
                 var link = await _db.EventPublicLinks.FirstOrDefaultAsync(x => x.EventId == eventId);
                 if (link == null) return NotFound(new { message = "لا يوجد رابط عام لهذا الحدث" });

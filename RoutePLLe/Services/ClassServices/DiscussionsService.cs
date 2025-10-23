@@ -4,6 +4,7 @@ using EvenDAL.Repositories.InterFace;
 using EventPl.Dto.Mina;
 using EventPl.Services.Interface;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using RouteDAl.Data.Contexts;
 using System;
 using System.Collections.Generic;
@@ -21,17 +22,20 @@ namespace EventPl.Services.ClassServices
         private readonly IRepository<Discussion, Guid> _discussionRepo;
         private readonly IRepository<DiscussionReply, Guid> _replyRepo;
         private readonly IMapper _mapper;
+        private readonly IMemoryCache _cache;
 
         public DiscussionsService(
             AppDbContext db,
             IRepository<Discussion, Guid> discussionRepo,
             IRepository<DiscussionReply, Guid> replyRepo,
-            IMapper mapper)
+            IMapper mapper,
+            IMemoryCache cache)
         {
             _db = db;
             _discussionRepo = discussionRepo;
             _replyRepo = replyRepo;
             _mapper = mapper;
+            _cache = cache;
         }
 
         // ============================================
@@ -40,21 +44,53 @@ namespace EventPl.Services.ClassServices
 
         public async Task<List<DiscussionDto>> GetEventDiscussionsAsync(Guid eventId)
         {
+            var version = await _db.Events.AsNoTracking()
+                .Where(e => e.EventId == eventId)
+                .Select(e => (DateTime?)(e.UpdatedAt ?? e.CreatedAt))
+                .FirstOrDefaultAsync();
+            var ticks = version.HasValue ? version.Value.Ticks : 0L;
+            var cacheKey = $"evt:{eventId}:v:{ticks}:discussions";
+            if (_cache.TryGetValue(cacheKey, out List<DiscussionDto> cached))
+                return cached;
+
             var discussions = await _db.Discussions
                 .AsNoTracking()
                 .Where(d => d.EventId == eventId)
-                .Include(d => d.Replies.OrderByDescending(r => r.CreatedAt))
-                    .ThenInclude(r => r.User)
                 .OrderBy(d => d.Order)
                 .ToListAsync();
 
-            return _mapper.Map<List<DiscussionDto>>(discussions);
+            var dtos = _mapper.Map<List<DiscussionDto>>(discussions);
+            _cache.Set(cacheKey, dtos, TimeSpan.FromSeconds(45));
+            return dtos;
         }
+        public async Task<List<DiscussionDto>> GetEventDiscussionsAsync(Guid eventId, long? eventVersionTicks)
+        {
+            var ticks = eventVersionTicks ?? (await _db.Events.AsNoTracking()
+                .Where(e => e.EventId == eventId)
+                .Select(e => (DateTime?)(e.UpdatedAt ?? e.CreatedAt))
+                .FirstOrDefaultAsync())?.Ticks ?? 0L;
+
+            var cacheKey = $"evt:{eventId}:v:{ticks}:discussions";
+            if (_cache.TryGetValue(cacheKey, out List<DiscussionDto> cached))
+                return cached;
+
+            var discussions = await _db.Discussions
+                .AsNoTracking()
+                .Where(d => d.EventId == eventId)
+                .OrderBy(d => d.Order)
+                .ToListAsync();
+
+            var dtos = _mapper.Map<List<DiscussionDto>>(discussions);
+            _cache.Set(cacheKey, dtos, TimeSpan.FromSeconds(45));
+            return dtos;
+        }
+
 
         public async Task<DiscussionDto?> GetDiscussionByIdAsync(Guid discussionId)
         {
             var discussion = await _db.Discussions
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Where(d => d.DiscussionId == discussionId)
                 .Include(d => d.Replies.OrderByDescending(r => r.CreatedAt))
                     .ThenInclude(r => r.User)
@@ -215,6 +251,7 @@ namespace EventPl.Services.ClassServices
         {
             var replies = await _db.DiscussionReplies
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Where(r => r.DiscussionId == discussionId)
                 .Include(r => r.User)
                 .OrderByDescending(r => r.CreatedAt)

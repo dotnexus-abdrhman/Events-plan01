@@ -9,7 +9,7 @@ namespace EventPresentationlayer.ViewModels
     {
         public Guid? EventId { get; set; }
 
-        [Required(ErrorMessage = "الجهة مطلوبة")]
+        [Required(ErrorMessage = "المجموعة مطلوبة")]
         public Guid OrganizationId { get; set; }
 
         // يتعبّى من المستخدم الحالي في الكنترولر

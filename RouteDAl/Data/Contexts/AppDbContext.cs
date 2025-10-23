@@ -43,6 +43,7 @@ namespace RouteDAl.Data.Contexts
         // التوقيعات والتدقيق
         public DbSet<UserSignature> UserSignatures { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<PdfVerification> PdfVerifications { get; set; }
 
         // الجداول القديمة (للتوافق)
         public DbSet<EventParticipant> EventParticipants { get; set; }
@@ -62,6 +63,9 @@ namespace RouteDAl.Data.Contexts
         public DbSet<UserHiddenEvent> UserHiddenEvents { get; set; }
         public DbSet<EventPublicLink> EventPublicLinks { get; set; }
         public DbSet<PublicEventGuest> PublicEventGuests { get; set; }
+
+        // علاقة دعوات فردية للأحداث
+        public DbSet<EventInvitedUser> EventInvitedUsers { get; set; }
 
         // ================================
         // Constructor
@@ -94,6 +98,15 @@ namespace RouteDAl.Data.Contexts
                 b.HasOne(x => x.Event).WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
             });
 
+            // PdfVerification mapping
+            modelBuilder.Entity<PdfVerification>(b =>
+            {
+                b.HasKey(x => x.PdfVerificationId);
+                b.HasIndex(x => x.PdfVerificationId).IsUnique();
+                b.Property(x => x.PdfType).HasMaxLength(50).IsRequired();
+                b.Property(x => x.VerificationUrl).HasMaxLength(300).IsRequired();
+            });
+
             // PublicEventGuest mapping
             modelBuilder.Entity<PublicEventGuest>(b =>
             {
@@ -105,6 +118,15 @@ namespace RouteDAl.Data.Contexts
                 b.HasOne(x => x.Event).WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
                 b.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
             });
+            // EventInvitedUser mapping (Unique per EventId+UserId)
+            modelBuilder.Entity<EventInvitedUser>(b =>
+            {
+                b.HasKey(x => x.EventInvitedUserId);
+                b.HasIndex(x => new { x.EventId, x.UserId }).IsUnique();
+                b.HasOne(x => x.Event).WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Cascade);
+                b.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            });
+
 
             // Apply enums configuration
             modelBuilder.ConfigureEnums();
@@ -120,8 +142,8 @@ namespace RouteDAl.Data.Contexts
             modelBuilder.Entity<Organization>().HasData(new Organization
             {
                 OrganizationId = orgId,
-                Name = "الجهة التجريبية",
-                NameEn = "Test Organization",
+                Name = "بدون مجموعة",
+                NameEn = "Ungrouped",
                 Type = EvenDAL.Models.Shared.Enums.OrganizationType.Other,
                 Logo = string.Empty,
                 PrimaryColor = "#0d6efd",

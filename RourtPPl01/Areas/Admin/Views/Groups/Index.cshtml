@@ -1,0 +1,104 @@
+@model IEnumerable<EventPl.Dto.OrganizationDto>
+@{
+    ViewData["Title"] = "المجموعات";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="fas fa-building me-2"></i>المجموعات</h2>
+    <a class="btn btn-primary" asp-area="Admin" asp-controller="Groups" asp-action="Create">
+        <i class="fas fa-plus me-1"></i>مجموعة جديدة
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <!-- صندوق البحث أعلى الجدول -->
+        <div class="mb-3">
+            <div class="input-group">
+                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                <input type="search" id="orgSearch" class="form-control" placeholder="ابحث بالاسم أو أي حقل ظاهر في الجدول">
+            </div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="orgTable">
+                <thead>
+                    <tr>
+                        <th class="text-muted" style="width:56px">#</th>
+                        <th>الاسم بالعربي</th>
+                        <th>الاسم بالإنجليزي</th>
+
+                        <th>النوع</th>
+                        <th>انتهاء الترخيص</th>
+                        <th>الحالة</th>
+                        <th>تاريخ الإنشاء</th>
+                        <th class="text-end">إجراءات</th>
+                    </tr>
+                </thead>
+                @{ var rowIndex = 0; }
+                <tbody>
+                @foreach (var o in Model)
+                {
+                    <tr>
+                        <td class="text-muted">@(++rowIndex)</td>
+                        <td>@o.Name</td>
+                        <td>@o.NameEn</td>
+                        <td>@o.TypeName</td>
+                        <td>@(o.LicenseExpiry?.ToString("yyyy/MM/dd") ?? "-")</td>
+                        <td>
+                            @if(o.IsActive)
+                            {
+                                <span class="badge bg-success">نشط</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">غير نشط</span>
+                            }
+                        </td>
+                        <td>@o.CreatedAt.ToString("yyyy/MM/dd HH:mm")</td>
+                        <td class="text-end">
+                            <div class="btn-group" role="group">
+                                <a class="btn btn-sm btn-outline-secondary" asp-area="Admin" asp-controller="Groups" asp-action="Details" asp-route-id="@o.OrganizationId">
+                                    <i class="fas fa-eye"></i> عرض
+                                </a>
+                                <a class="btn btn-sm btn-outline-primary" asp-area="Admin" asp-controller="Groups" asp-action="Edit" asp-route-id="@o.OrganizationId">
+                                    <i class="fas fa-edit"></i> تعديل
+                                </a>
+                                <form asp-area="Admin" asp-controller="Groups" asp-action="Delete" asp-route-id="@o.OrganizationId" method="post" onsubmit="return confirm('تأكيد الحذف؟');">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fas fa-trash"></i> حذف
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<script>
+(function(){
+  const input = document.getElementById('orgSearch');
+  const table = document.getElementById('orgTable');
+  if(!input || !table) return;
+  const tbody = table.tBodies && table.tBodies[0];
+  const rows = Array.from(tbody ? tbody.rows : []);
+  const cache = rows.map(r => ({ row: r, text: (r.innerText || '').toLowerCase() }));
+  let timer = null;
+  function applyFilter(q){
+    const query = (q || '').trim().toLowerCase();
+    cache.forEach(({row, text}) => {
+      row.style.display = (query === '' || text.includes(query)) ? '' : 'none';
+    });
+  }
+  input.addEventListener('input', function(){
+    if (timer) clearTimeout(timer);
+    const val = this.value;
+    timer = setTimeout(() => applyFilter(val), 75);
+  }, { passive: true });
+})();
+</script>
+
+

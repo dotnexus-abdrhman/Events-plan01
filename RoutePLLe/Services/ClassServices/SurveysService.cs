@@ -5,6 +5,7 @@ using EvenDAL.Repositories.InterFace;
 using EventPl.Dto.Mina;
 using EventPl.Services.Interface;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using RouteDAl.Data.Contexts;
 using System;
 using System.Collections.Generic;
@@ -25,6 +26,7 @@ namespace EventPl.Services.ClassServices
         private readonly IRepository<SurveyAnswer, Guid> _answerRepo;
         private readonly IRepository<SurveyAnswerOption, Guid> _answerOptionRepo;
         private readonly IMapper _mapper;
+        private readonly IMemoryCache _cache;
 
         public SurveysService(
             AppDbContext db,
@@ -33,7 +35,8 @@ namespace EventPl.Services.ClassServices
             IRepository<SurveyOption, Guid> optionRepo,
             IRepository<SurveyAnswer, Guid> answerRepo,
             IRepository<SurveyAnswerOption, Guid> answerOptionRepo,
-            IMapper mapper)
+            IMapper mapper,
+            IMemoryCache cache)
         {
             _db = db;
             _surveyRepo = surveyRepo;
@@ -42,6 +45,7 @@ namespace EventPl.Services.ClassServices
             _answerRepo = answerRepo;
             _answerOptionRepo = answerOptionRepo;
             _mapper = mapper;
+            _cache = cache;
         }
 
         // ============================================
@@ -50,21 +54,59 @@ namespace EventPl.Services.ClassServices
 
         public async Task<List<SurveyDto>> GetEventSurveysAsync(Guid eventId)
         {
+            var version = await _db.Events.AsNoTracking()
+                .Where(e => e.EventId == eventId)
+                .Select(e => (DateTime?)(e.UpdatedAt ?? e.CreatedAt))
+                .FirstOrDefaultAsync();
+            var ticks = version.HasValue ? version.Value.Ticks : 0L;
+            var cacheKey = $"evt:{eventId}:v:{ticks}:surveys";
+            if (_cache.TryGetValue(cacheKey, out List<SurveyDto> cached))
+                return cached;
+
             var surveys = await _db.Surveys
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Where(s => s.EventId == eventId)
                 .Include(s => s.Questions.OrderBy(q => q.Order))
                     .ThenInclude(q => q.Options.OrderBy(o => o.Order))
                 .OrderBy(s => s.Order)
                 .ToListAsync();
 
-            return _mapper.Map<List<SurveyDto>>(surveys);
+            var dtos = _mapper.Map<List<SurveyDto>>(surveys);
+            _cache.Set(cacheKey, dtos, TimeSpan.FromSeconds(45));
+            return dtos;
         }
+        public async Task<List<SurveyDto>> GetEventSurveysAsync(Guid eventId, long? eventVersionTicks)
+        {
+            var ticks = eventVersionTicks ?? (await _db.Events.AsNoTracking()
+                .Where(e => e.EventId == eventId)
+                .Select(e => (DateTime?)(e.UpdatedAt ?? e.CreatedAt))
+                .FirstOrDefaultAsync())?.Ticks ?? 0L;
+
+            var cacheKey = $"evt:{eventId}:v:{ticks}:surveys";
+            if (_cache.TryGetValue(cacheKey, out List<SurveyDto> cached))
+                return cached;
+
+            var surveys = await _db.Surveys
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Where(s => s.EventId == eventId)
+                .Include(s => s.Questions.OrderBy(q => q.Order))
+                    .ThenInclude(q => q.Options.OrderBy(o => o.Order))
+                .OrderBy(s => s.Order)
+                .ToListAsync();
+
+            var dtos = _mapper.Map<List<SurveyDto>>(surveys);
+            _cache.Set(cacheKey, dtos, TimeSpan.FromSeconds(45));
+            return dtos;
+        }
+
 
         public async Task<SurveyDto?> GetSurveyByIdAsync(Guid surveyId)
         {
             var survey = await _db.Surveys
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Where(s => s.SurveyId == surveyId)
                 .Include(s => s.Questions.OrderBy(q => q.Order))
                     .ThenInclude(q => q.Options.OrderBy(o => o.Order))
@@ -160,8 +202,8 @@ namespace EventPl.Services.ClassServices
             {
                 var existingQuestions = await _questionRepo
                     .FindAsync(q => q.SurveyId == dto.SurveyId);
-                dto.Order = existingQuestions.Any() 
-                    ? existingQuestions.Max(q => q.Order) + 1 
+                dto.Order = existingQuestions.Any()
+                    ? existingQuestions.Max(q => q.Order) + 1
                     : 1;
             }
 
@@ -223,8 +265,8 @@ namespace EventPl.Services.ClassServices
             {
                 var existingOptions = await _optionRepo
                     .FindAsync(o => o.QuestionId == dto.QuestionId);
-                dto.Order = existingOptions.Any() 
-                    ? existingOptions.Max(o => o.Order) + 1 
+                dto.Order = existingOptions.Any()
+                    ? existingOptions.Max(o => o.Order) + 1
                     : 1;
             }
 
@@ -326,6 +368,7 @@ namespace EventPl.Services.ClassServices
         {
             var answers = await _db.SurveyAnswers
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Where(a => a.EventId == eventId && a.UserId == userId)
                 .Include(a => a.SelectedOptions)
                 .ToListAsync();

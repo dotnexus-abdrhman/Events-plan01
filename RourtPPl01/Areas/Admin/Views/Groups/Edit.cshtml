@@ -1,0 +1,222 @@
+@model EventPresentationlayer.ViewModels.OrganizationFormVm
+@{
+    ViewData["Title"] = "تعديل مجموعة";
+}
+
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <div>
+            <h2 class="mb-0"><i class="fas fa-building me-2"></i>تعديل مجموعة</h2>
+            <p class="text-muted">قم بتحديث بيانات المجموعة ثم احفظ</p>
+        </div>
+        <div>
+            <a asp-area="Admin" asp-controller="Groups" asp-action="Index" class="btn btn-secondary"><i class="fas fa-arrow-right me-1"></i>عودة</a>
+        </div>
+    </div>
+</div>
+
+@if(TempData["Error"] != null)
+{
+    <div class="alert alert-danger"><i class="fas fa-exclamation-circle me-1"></i>@TempData["Error"]</div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <form asp-area="Admin" asp-controller="Groups" asp-action="Edit" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="OrganizationId" />
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="Name" class="form-label">الاسم (عربي)</label>
+                    <input asp-for="Name" class="form-control" placeholder="اسم المجموعة" />
+                    <span asp-validation-for="Name" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="NameEn" class="form-label">الاسم (English)</label>
+                    <input asp-for="NameEn" class="form-control" placeholder="Organization Name" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Type" class="form-label">النوع</label>
+                    <select asp-for="Type" class="form-select">
+                        <option value="1">حكومي</option>
+                        <option value="2">خاص</option>
+                        <option value="3">غير ربحي</option>
+                        <option value="4">أخرى</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="LicenseExpiry" class="form-label">انتهاء الرخصة</label>
+                    <input asp-for="LicenseExpiry" type="date" class="form-control" />
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <div class="form-check">
+                        <input asp-for="IsActive" class="form-check-input" type="checkbox" />
+                        <label asp-for="IsActive" class="form-check-label">مفعلة</label>
+                    </div>
+                </div>
+            </div>
+
+                <hr class="my-4" />
+                <div class="row g-3">
+                    <div class="col-12 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-users me-1"></i>أعضاء المجموعة الحاليون (@Model.CurrentUsers.Count)</h5>
+                        <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#addMembersPanel" aria-expanded="false">
+                            <i class="fas fa-user-plus"></i> إضافة مستخدمين جدد
+                        </button>
+                    </div>
+                    <div class="col-12">
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>الاسم</th>
+                                        <th>البريد</th>
+                                        <th>الهاتف</th>
+                                        <th>الحالة</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                @if (!Model.CurrentUsers.Any())
+                                {
+                                    <tr><td colspan="4" class="text-muted text-center">لا يوجد أعضاء حاليًا</td></tr>
+                                }
+                                else
+                                {
+                                    foreach (var u in Model.CurrentUsers)
+                                    {
+                                        <tr>
+                                            <td>@u.FullName</td>
+                                            <td>@u.Email</td>
+                                            <td>@u.Phone</td>
+                                            <td>@(u.IsActive ? "نشط" : "غير نشط")</td>
+                                        </tr>
+                                    }
+                                }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="collapse" id="addMembersPanel">
+                        <div class="col-12">
+                            <label class="form-label mt-2">إضافة أعضاء (نمط واتساب)</label>
+                            <div class="input-group mb-2">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" id="userSearchEdit" class="form-control" placeholder="ابحث بالاسم أو الهاتف أو البريد" />
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="border rounded p-2" style="max-height: 320px; overflow-y: auto;">
+                                        <ul id="availableUsersListEdit" class="list-unstyled mb-0"></ul>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="border rounded p-2 h-100">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="fw-bold">المحددّون</span>
+                                            <span class="badge bg-secondary" id="selectedCountEdit">0</span>
+                                        </div>
+                                        <div id="selectedUsersEdit" class="d-flex flex-wrap gap-2"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="selectedHiddenInputsEdit"></div>
+                            <small class="text-muted d-block mt-2">سيتم إضافة الأعضاء المختارين عند الحفظ.</small>
+                        </div>
+                    </div>
+                </div>
+
+                <script id="available-users-json-edit" type="application/json">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.AvailableUsers))</script>
+
+
+            <div class="mt-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>حفظ</button>
+                <a asp-area="Admin" asp-controller="Groups" asp-action="Index" class="btn btn-outline-secondary">إلغاء</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const dataEl = document.getElementById('available-users-json-edit');
+            if (!dataEl) return;
+            const all = JSON.parse(dataEl.textContent || '[]');
+            const list = document.getElementById('availableUsersListEdit');
+            const selectedWrap = document.getElementById('selectedUsersEdit');
+            const hiddenWrap = document.getElementById('selectedHiddenInputsEdit');
+            const search = document.getElementById('userSearchEdit');
+            const selected = new Map();
+
+            function renderList(items) {
+                list.innerHTML = '';
+                items.forEach(u => {
+                    const li = document.createElement('li');
+                    li.className = 'd-flex align-items-center justify-content-between py-2 border-bottom';
+                    li.innerHTML = `
+                        <div class="d-flex align-items-center gap-2">
+                            <input class="form-check-input" type="checkbox" data-id="${u.userId || u.UserId}" />
+                            <div>
+                                <div class="fw-semibold">${u.fullName || u.FullName}</div>
+                                <div class="text-muted small">${u.email || u.Email} · ${u.phone || u.Phone}</div>
+                            </div>
+                        </div>`;
+                    list.appendChild(li);
+                    const cb = li.querySelector('input[type=checkbox]');
+                    cb.checked = selected.has((u.userId||u.UserId));
+                    cb.addEventListener('change', () => toggle((u.userId||u.UserId), (u.fullName||u.FullName), (u.email||u.Email), (u.phone||u.Phone)));
+                });
+            }
+
+            function renderSelected() {
+                selectedWrap.innerHTML = '';
+                hiddenWrap.innerHTML = '';
+                selected.forEach((u, id) => {
+                    const badge = document.createElement('span');
+                    badge.className = 'badge rounded-pill bg-primary';
+                    badge.innerHTML = `<i class="fas fa-user me-1"></i>${u.name}<button type="button" class="btn btn-sm btn-link text-white ms-2 p-0 remove" data-id="${id}"><i class="fas fa-times"></i></button>`;
+                    selectedWrap.appendChild(badge);
+                    const hidden = document.createElement('input');
+                    hidden.type = 'hidden'; hidden.name = 'SelectedUserIds'; hidden.value = id;
+                    hiddenWrap.appendChild(hidden);
+                });
+                const count = document.getElementById('selectedCountEdit');
+                if (count) count.textContent = selected.size;
+                (list.querySelectorAll('input[type=checkbox]')||[]).forEach(cb => {
+                    const id = cb.getAttribute('data-id');
+                    cb.checked = selected.has(id);
+                });
+                selectedWrap.querySelectorAll('button.remove').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.getAttribute('data-id');
+                        selected.delete(id); renderSelected();
+                    });
+                });
+            }
+
+            function toggle(id, name, email, phone) {
+                if (selected.has(id)) selected.delete(id); else selected.set(id, { name, email, phone });
+                renderSelected();
+            }
+
+            function applyFilter() {
+                const q = (search.value || '').trim().toLowerCase();
+                const filtered = !q ? all : all.filter(u => {
+                    const name = (u.fullName || u.FullName || '').toLowerCase();
+                    const email = (u.email || u.Email || '').toLowerCase();
+                    const phone = (u.phone || u.Phone || '').toLowerCase();
+                    return name.includes(q) || email.includes(q) || phone.includes(q);
+                });
+                renderList(filtered);
+            }
+
+            if (search) search.addEventListener('input', applyFilter);
+            renderList(all);
+            renderSelected();
+        })();
+    </script>
+}
+

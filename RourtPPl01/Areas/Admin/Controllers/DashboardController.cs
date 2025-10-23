@@ -7,10 +7,11 @@ using EvenDAL.Models.Shared.Enums;
 using EventPl.Services.Interface;
 using EventPl.Dto;
 
+using System.Linq;
 namespace RourtPPl01.Areas.Admin.Controllers
 {
     [Area("Admin")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "PlatformAdmin")]
     public class DashboardController : Controller
     {
         private readonly AppDbContext _db;
@@ -39,23 +40,14 @@ namespace RourtPPl01.Areas.Admin.Controllers
             {
                 var orgId = GetOrganizationId();
 
-                // المدير العام يشاهد إحصاءات المنصة بالكامل بغض النظر عن OrganizationId
-                var isPlatformScope = User.IsInRole("Admin") || orgId == Guid.Empty;
+                // احسب الإحصاءات بنفس نطاق الشاشات لضمان التطابق (أحداث المنظمة + البث)
+                var eventsList = await _eventsService.GetOrganizationEventsAsync(orgId) ?? new List<EventPl.Dto.EventDto>();
+                var totalEvents = eventsList.Select(e => e.EventId).Distinct().Count();
+                var activeEvents = eventsList.Count(e => Enum.TryParse<EventStatus>(e.StatusName, true, out var s) && s == EventStatus.Active);
 
-                // Counts computed directly from DB to avoid service-side filters and ensure accuracy
-                var totalEvents = isPlatformScope
-                    ? await _db.Events.CountAsync()
-                    : await _db.Events.CountAsync(e => e.OrganizationId == orgId);
-
-                var activeEvents = isPlatformScope
-                    ? await _db.Events.CountAsync(e => e.Status == EventStatus.Active)
-                    : await _db.Events.CountAsync(e => e.OrganizationId == orgId && e.Status == EventStatus.Active);
-
-                var totalUsers = isPlatformScope
-                    ? await _db.Users.CountAsync()
-                    : await _db.Users.CountAsync(u => u.OrganizationId == orgId);
-
-                var totalOrgs = await _db.Organizations.CountAsync();
+                // نفس مصادر القوائم لضمان التطابق
+                var totalUsers = (await _usersService.ListAsync()).Count();
+                var totalOrgs = (await _orgsService.ListAsync()).Count();
 
                 var stats = new DashboardViewModel
                 {
@@ -64,15 +56,14 @@ namespace RourtPPl01.Areas.Admin.Controllers
                     TotalUsers = totalUsers,
                     TotalOrganizations = totalOrgs,
 
-                    // بقية الإحصاءات (ليست معروضة في الواجهة الآن، لكنها صحيحة)
-                    TotalSurveys = isPlatformScope ? await _db.Surveys.CountAsync() : await _db.Surveys.CountAsync(s => s.Event.OrganizationId == orgId),
-                    TotalDiscussions = isPlatformScope ? await _db.Discussions.CountAsync() : await _db.Discussions.CountAsync(d => d.Event.OrganizationId == orgId),
-                    TotalTables = isPlatformScope ? await _db.TableBlocks.CountAsync() : await _db.TableBlocks.CountAsync(t => t.Event.OrganizationId == orgId),
-                    TotalAttachments = isPlatformScope ? await _db.Attachments.CountAsync() : await _db.Attachments.CountAsync(a => a.Event.OrganizationId == orgId),
-                    TotalSignatures = isPlatformScope ? await _db.UserSignatures.CountAsync() : await _db.UserSignatures.CountAsync(s => s.Event.OrganizationId == orgId),
+                    // بقية الإحصاءات (مقيدة بنطاق المنظمة)
+                    TotalSurveys = await _db.Surveys.CountAsync(s => s.Event.OrganizationId == orgId),
+                    TotalDiscussions = await _db.Discussions.CountAsync(d => d.Event.OrganizationId == orgId),
+                    TotalTables = await _db.TableBlocks.CountAsync(t => t.Event.OrganizationId == orgId),
+                    TotalAttachments = await _db.Attachments.CountAsync(a => a.Event.OrganizationId == orgId),
+                    TotalSignatures = await _db.UserSignatures.CountAsync(s => s.Event.OrganizationId == orgId),
 
-                    RecentEvents = await _db.Events
-                        .Where(e => isPlatformScope || e.OrganizationId == orgId)
+                    RecentEvents = eventsList
                         .OrderByDescending(e => e.CreatedAt)
                         .Take(5)
                         .Select(e => new RecentEventViewModel
@@ -80,9 +71,9 @@ namespace RourtPPl01.Areas.Admin.Controllers
                             EventId = e.EventId,
                             Title = e.Title,
                             StartAt = e.StartAt,
-                            Status = e.Status.ToString()
+                            Status = e.StatusName ?? string.Empty
                         })
-                        .ToListAsync()
+                        .ToList()
                 };
 
                 return View(stats);

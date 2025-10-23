@@ -36,6 +36,9 @@ namespace EvenDAL.Models.Classes
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
 
+        // بث/حدث عام يظهر لكل المجموعات
+        public bool IsBroadcast { get; set; } = false;
+
         // Navigation Properties
         public virtual Organization Organization { get; set; }
         public virtual User CreatedBy { get; set; }

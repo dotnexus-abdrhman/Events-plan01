@@ -5,6 +5,8 @@ using EventPl.Dto;
 using EventPl.Services.Interface;
 using RouteDAl.Data.Contexts; // اسم الكونتكست عندك
 
+using EvenDAL.Models.Classes;
+
 namespace EventPl.Services
 {
     public class AuthService : IAuthService
@@ -17,32 +19,32 @@ namespace EventPl.Services
             if (string.IsNullOrWhiteSpace(identifier))
                 return null;
 
-            // محاولة البحث بالـ Email أولاً (للـ Admin)
-            var user = await _db.Users
-                .AsNoTracking()
-                .Include(u => u.Organization)
-                .FirstOrDefaultAsync(u => u.Email == identifier && u.IsActive);
-
-            // إذا لم يُعثر عليه، ابحث بالـ Phone (للـ User)
-            if (user == null)
+            // فرّق مبكرًا لتقليل الاستعلامات: بريد إلكتروني أم هاتف؟
+            bool isEmail = identifier.Contains("@");
+            User? user = null;
+            if (isEmail)
             {
-                // في حال وجود أكثر من مستخدم بنفس رقم الهاتف، اختر الأحدث إنشاؤًا لضمان توافق الاختبارات (غالباً ما يُنشأ المستخدم المستهدف أثناء الاختبار)
                 user = await _db.Users
                     .AsNoTracking()
-                    .Include(u => u.Organization)
+                    .FirstOrDefaultAsync(u => u.Email == identifier && u.IsActive);
+            }
+            else
+            {
+                user = await _db.Users
+                    .AsNoTracking()
                     .Where(u => u.Phone == identifier && u.IsActive)
                     .OrderBy(u => u.CreatedAt) // اختر الأقدم لضمان التقاط المستخدم المفعل الافتراضي seeded
                     .FirstOrDefaultAsync();
             }
 
-            // إذا لم يُعثر عليه، ابحث في PlatformAdmins
-            if (user == null)
+            // إذا لم يُعثر عليه، ابحث في PlatformAdmins (بريد فقط)
+            if (user is null && isEmail)
             {
                 var admin = await _db.PlatformAdmins
                     .AsNoTracking()
                     .FirstOrDefaultAsync(a => a.Email == identifier && a.IsActive);
 
-                if (admin != null)
+                if (admin is not null)
                 {
                     // إرجاع Admin كـ UserDto
                     return new UserDto
@@ -63,6 +65,10 @@ namespace EventPl.Services
                 return null;
             }
 
+            // إن لم يُعثر على مستخدم (خاصةً في مسار الهاتف)، أعد null
+            if (user is null)
+                return null;
+
             // التحقق من أن User مربوط بـ Organization
             if (user.OrganizationId == Guid.Empty)
                 return null;
@@ -71,8 +77,8 @@ namespace EventPl.Services
             {
                 UserId = user.UserId,
                 OrganizationId = user.OrganizationId,
-                FullName = user.FullName ?? user.Email,
-                Email = user.Email,
+                FullName = !string.IsNullOrWhiteSpace(user.FullName) ? user.FullName : (!string.IsNullOrWhiteSpace(user.Email) ? user.Email : user.Phone),
+                Email = !string.IsNullOrWhiteSpace(user.Email) ? user.Email : user.Phone,
                 Phone = user.Phone,
                 RoleName = user.Role.ToString(), // Admin/Organizer/Attendee/Observer
                 ProfilePicture = user.ProfilePicture,

@@ -8,7 +8,7 @@ using RourtPPl01.Areas.Admin.ViewModels;
 namespace RourtPPl01.Areas.Admin.Controllers
 {
     [Area("Admin")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "PlatformAdmin")]
     public class UsersController : Controller
     {
         private readonly ICrudService<UserDto, Guid> _users;
@@ -39,7 +39,7 @@ namespace RourtPPl01.Areas.Admin.Controllers
                     FullName = u.FullName,
                     Email = u.Email,
                     Phone = u.Phone ?? string.Empty,
-                    OrganizationName = orgs.ContainsKey(u.OrganizationId) ? orgs[u.OrganizationId] : string.Empty,
+                    OrganizationName = (u.OrganizationId.HasValue && orgs.ContainsKey(u.OrganizationId.Value)) ? orgs[u.OrganizationId.Value] : "بدون مجموعة",
                     RoleName = u.RoleName,
                     IsActive = u.IsActive,
                     CreatedAt = u.CreatedAt
@@ -54,6 +54,8 @@ namespace RourtPPl01.Areas.Admin.Controllers
             var vm = new UsersCreatePageViewModel
             {
                 Organizations = (await _orgs.ListAsync())
+                    .OrderBy(o => o.CreatedAt)
+                    .ThenBy(o => o.Name ?? o.NameEn ?? "Organization")
                     .Select(o => new OrgItem { OrganizationId = o.OrganizationId, Name = o.Name ?? o.NameEn ?? "Organization" })
                     .ToList()
             };
@@ -70,6 +72,8 @@ namespace RourtPPl01.Areas.Admin.Controllers
                 {
                     Form = form,
                     Organizations = (await _orgs.ListAsync())
+                        .OrderBy(o => o.CreatedAt)
+                        .ThenBy(o => o.Name ?? o.NameEn ?? "Organization")
                         .Select(o => new OrgItem { OrganizationId = o.OrganizationId, Name = o.Name ?? o.NameEn ?? "Organization" })
                         .ToList()
                 };
@@ -78,10 +82,14 @@ namespace RourtPPl01.Areas.Admin.Controllers
 
             try
             {
+                Guid? orgId = (form.OrganizationId.HasValue && form.OrganizationId.Value != Guid.Empty)
+                    ? form.OrganizationId.Value
+                    : (Guid?)null;
+
                 var dto = new UserDto
                 {
                     UserId = Guid.NewGuid(),
-                    OrganizationId = form.OrganizationId,
+                    OrganizationId = orgId,
                     FullName = form.FullName.Trim(),
                     Email = form.Email.Trim(),
                     Phone = form.Phone?.Trim() ?? string.Empty,
@@ -102,6 +110,8 @@ namespace RourtPPl01.Areas.Admin.Controllers
                 {
                     Form = form,
                     Organizations = (await _orgs.ListAsync())
+                        .OrderBy(o => o.CreatedAt)
+                        .ThenBy(o => o.Name ?? o.NameEn ?? "Organization")
                         .Select(o => new OrgItem { OrganizationId = o.OrganizationId, Name = o.Name ?? o.NameEn ?? "Organization" })
                         .ToList()
                 };
@@ -126,9 +136,16 @@ namespace RourtPPl01.Areas.Admin.Controllers
                     IsActive = dto.IsActive
                 },
                 Organizations = (await _orgs.ListAsync())
+                    .OrderBy(o => o.CreatedAt)
+                    .ThenBy(o => o.Name ?? o.NameEn ?? "Organization")
                     .Select(o => new OrgItem { OrganizationId = o.OrganizationId, Name = o.Name ?? o.NameEn ?? "Organization" })
                     .ToList(),
-                Roles = new List<string> { "Attendee", "Organizer", "Observer" }
+                Roles = new List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>
+                {
+                    new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem { Value = "Admin", Text = "المدير التنفيذي" },
+                    new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem { Value = "Organizer", Text = "عضو مجلس إدارة" },
+                    new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem { Value = "Attendee", Text = "عضو" }
+                }
             };
             ViewBag.UserId = id;
             return View(vm);
@@ -144,9 +161,16 @@ namespace RourtPPl01.Areas.Admin.Controllers
                 {
                     Form = form,
                     Organizations = (await _orgs.ListAsync())
+                        .OrderBy(o => o.CreatedAt)
+                        .ThenBy(o => o.Name ?? o.NameEn ?? "Organization")
                         .Select(o => new OrgItem { OrganizationId = o.OrganizationId, Name = o.Name ?? o.NameEn ?? "Organization" })
                         .ToList(),
-                    Roles = new List<string> { "Attendee", "Organizer", "Observer" }
+                    Roles = new List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>
+                {
+                    new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem { Value = "Admin", Text = "المدير التنفيذي" },
+                    new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem { Value = "Organizer", Text = "عضو مجلس إدارة" },
+                    new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem { Value = "Attendee", Text = "عضو" }
+                }
                 };
                 ViewBag.UserId = id;
                 return View(pageVm);
@@ -160,7 +184,9 @@ namespace RourtPPl01.Areas.Admin.Controllers
                 existing.FullName = form.FullName.Trim();
                 existing.Email = form.Email.Trim();
                 existing.Phone = form.Phone?.Trim() ?? string.Empty;
-                existing.OrganizationId = form.OrganizationId;
+                existing.OrganizationId = (form.OrganizationId.HasValue && form.OrganizationId.Value != Guid.Empty)
+                    ? form.OrganizationId.Value
+                    : null;
                 existing.RoleName = form.RoleName;
                 existing.IsActive = form.IsActive;
 
@@ -178,7 +204,12 @@ namespace RourtPPl01.Areas.Admin.Controllers
                     Organizations = (await _orgs.ListAsync())
                         .Select(o => new OrgItem { OrganizationId = o.OrganizationId, Name = o.Name ?? o.NameEn ?? "Organization" })
                         .ToList(),
-                    Roles = new List<string> { "Attendee", "Organizer", "Observer" }
+                    Roles = new List<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>
+                {
+                    new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem { Value = "Admin", Text = "المدير التنفيذي" },
+                    new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem { Value = "Organizer", Text = "عضو مجلس إدارة" },
+                    new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem { Value = "Attendee", Text = "عضو" }
+                }
                 };
                 ViewBag.UserId = id;
                 return View(pageVm);
@@ -237,6 +268,41 @@ namespace RourtPPl01.Areas.Admin.Controllers
                 }
             }
         }
+
+        private async Task<Guid> GetDefaultGroupId()
+        {
+            try
+            {
+                var orgs = await _orgs.ListAsync();
+                var existing = orgs.FirstOrDefault(o => string.Equals((o.Name ?? string.Empty).Trim(), "بدون مجموعة", StringComparison.Ordinal))
+                               ?? orgs.FirstOrDefault(o => string.Equals((o.NameEn ?? string.Empty).Trim(), "Ungrouped", StringComparison.OrdinalIgnoreCase));
+                if (existing != null) return existing.OrganizationId;
+
+                var dto = new OrganizationDto
+                {
+                    OrganizationId = Guid.NewGuid(),
+                    Name = "بدون مجموعة",
+                    NameEn = "Ungrouped",
+                    TypeName = "Other",
+                    Type = 4,
+                    LicenseExpiry = null,
+                    IsActive = true,
+                    PrimaryColor = "#4A90E2",
+                    SecondaryColor = "#6C757D",
+                    Logo = string.Empty,
+                    Settings = "{}",
+                    LicenseKey = $"GROUP-NONE-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}",
+                    CreatedAt = DateTime.UtcNow
+                };
+                var created = await _orgs.CreateAsync(dto);
+                return created.OrganizationId;
+            }
+            catch
+            {
+                return Guid.Empty;
+            }
+        }
+
 
     }
 }

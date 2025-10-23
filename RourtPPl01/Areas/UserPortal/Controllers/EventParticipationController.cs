@@ -7,10 +7,13 @@ using RourtPPl01.Areas.UserPortal.ViewModels;
 using System.Security.Claims;
 using EvenDAL.Models.Shared.Enums;
 
+
+
 namespace RourtPPl01.Areas.UserPortal.Controllers
 {
     [Area("UserPortal")]
-    [Authorize(Roles = "Attendee,Organizer,Observer")]
+    // Allow Executive Manager (Admin role) to access the same UI as regular users
+    [Authorize(Roles = "Attendee,Organizer,Observer,Admin")]
     public class EventParticipationController : Controller
     {
         private readonly IMinaEventsService _eventsService;
@@ -48,14 +51,25 @@ namespace RourtPPl01.Areas.UserPortal.Controllers
         // ============================================
         // GET: UserPortal/EventParticipation/Details/eventId
         // ============================================
+        [AllowAnonymous]
         [HttpGet]
+        [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Client, NoStore = false)]
+
         public async Task<IActionResult> Details(Guid id)
         {
             try
             {
+                var isAuthenticated = User?.Identity?.IsAuthenticated == true;
                 var userId = GetUserId();
-                // Use OrganizationId from claims for authorization comparisons
-                var orgId = GetOrganizationId();
+                Guid orgId = Guid.Empty;
+                if (isAuthenticated)
+                {
+                    // Use OrganizationId from claims for authorization comparisons
+                    orgId = GetOrganizationId();
+                }
+
+
+
 
                 var eventDto = await _eventsService.GetEventByIdAsync(id);
                 if (eventDto == null)
@@ -65,24 +79,56 @@ namespace RourtPPl01.Areas.UserPortal.Controllers
                 }
 
                 // التحقق من الصلاحية
-                if (eventDto.OrganizationId != orgId)
+                if (isAuthenticated)
                 {
-                    return Forbid();
+                    if (!eventDto.IsBroadcast && eventDto.OrganizationId != orgId)
+                    {
+                        return Forbid();
+                    }
                 }
 
-                // تحميل جميع المكونات
-                var sections = await _sectionsService.GetEventSectionsAsync(id);
-                var surveys = await _surveysService.GetEventSurveysAsync(id);
-                var discussions = await _discussionsService.GetEventDiscussionsAsync(id);
-                var tables = await _tablesService.GetEventTablesAsync(id);
-                var attachments = await _attachmentsService.GetEventAttachmentsAsync(id);
+                // تحميل جميع المكونات (تسلسليًا) مع تمرير نسخة الحدث لتقليل الاستعلامات المتكررة داخل الخدمات
+                var versionTicks = (eventDto.UpdatedAt ?? eventDto.CreatedAt).Ticks;
+                var sections = await _sectionsService.GetEventSectionsAsync(id, versionTicks);
+                var surveys = await _surveysService.GetEventSurveysAsync(id, versionTicks);
+                var discussions = await _discussionsService.GetEventDiscussionsAsync(id, versionTicks);
+                var tables = await _tablesService.GetEventTablesAsync(id, versionTicks);
+                var attachments = await _attachmentsService.GetEventAttachmentsAsync(id, versionTicks);
 
-                // التحقق من التوقيع
-                var hasSignature = await _signaturesService.HasUserSignedAsync(id, userId);
+                // Hide merged Custom PDF from UserPortal (admins only)
+                attachments = attachments
+                    .Where(a => !string.Equals(a.Type, AttachmentType.CustomPdfMerged.ToString(), StringComparison.OrdinalIgnoreCase))
+                    .ToList();
 
-                // التحقق من المشاركة السابقة (مرة واحدة فقط)
-                var hasUserParticipated = (await _surveysService.HasUserAnsweredAsync(id, userId))
-                    || (await _signaturesService.HasUserSignedAsync(id, userId));
+
+                // Pre-group components by SectionId to avoid repeated O(n) filtering per section
+                var surveysBySection = surveys.Where(x => x.SectionId != null)
+                    .GroupBy(x => x.SectionId!.Value)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+                var discussionsBySection = discussions.Where(x => x.SectionId != null)
+                    .GroupBy(x => x.SectionId!.Value)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+                var tablesBySection = tables.Where(x => x.SectionId != null)
+                    .GroupBy(x => x.SectionId!.Value)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+                var attachmentsBySection = attachments.Where(x => x.SectionId != null)
+                    .GroupBy(x => x.SectionId!.Value)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+
+                var globalSurveys = surveys.Where(s => s.SectionId == null).ToList();
+                var globalDiscussions = discussions.Where(d => d.SectionId == null).ToList();
+                var globalTables = tables.Where(t => t.SectionId == null).ToList();
+                var globalAttachments = attachments.Where(a => a.SectionId == null).ToList();
+
+                // التحقق من التوقيع والمشاركة (للمستخدمين المسجّلين فقط)
+                bool hasSignature = false;
+                bool hasUserParticipated = false;
+                if (isAuthenticated)
+                {
+                    hasSignature = await _signaturesService.HasUserSignedAsync(id, userId);
+                    hasUserParticipated = (await _surveysService.HasUserAnsweredAsync(id, userId))
+                        || hasSignature;
+                }
 
                 var vm = new EventDetailsViewModel
                 {
@@ -113,49 +159,53 @@ namespace RourtPPl01.Areas.UserPortal.Controllers
                                 }).ToList() ?? new()
                             }).ToList() ?? new(),
                             // مكونات البند
-                            Surveys = surveys.Where(x => x.SectionId == s.SectionId).Select(ss => new SurveyViewModel
-                            {
-                                SurveyId = ss.SurveyId,
-                                Title = ss.Title,
-                                Description = null,
-                                Questions = ss.Questions?.Select(q => new QuestionViewModel
+                            Surveys = (surveysBySection.TryGetValue(s.SectionId, out var sSurveys) ? sSurveys : new List<SurveyDto>())
+                                .Select(ss => new SurveyViewModel
                                 {
-                                    SurveyQuestionId = q.SurveyQuestionId,
-                                    Text = q.Text,
-                                    Type = Enum.TryParse<SurveyQuestionType>(q.Type, out var qType) ? qType : SurveyQuestionType.Single,
-                                    IsRequired = q.IsRequired,
-                                    Options = q.Options?.Select(o => new OptionViewModel
+                                    SurveyId = ss.SurveyId,
+                                    Title = ss.Title,
+                                    Description = null,
+                                    Questions = ss.Questions?.Select(q => new QuestionViewModel
                                     {
-                                        SurveyOptionId = o.SurveyOptionId,
-                                        Text = o.Text
+                                        SurveyQuestionId = q.SurveyQuestionId,
+                                        Text = q.Text,
+                                        Type = Enum.TryParse<SurveyQuestionType>(q.Type, out var qType) ? qType : SurveyQuestionType.Single,
+                                        IsRequired = q.IsRequired,
+                                        Options = q.Options?.Select(o => new OptionViewModel
+                                        {
+                                            SurveyOptionId = o.SurveyOptionId,
+                                            Text = o.Text
+                                        }).ToList() ?? new()
                                     }).ToList() ?? new()
-                                }).ToList() ?? new()
-                            }).ToList(),
-                            Discussions = discussions.Where(x => x.SectionId == s.SectionId).Select(dd => new DiscussionViewModel
-                            {
-                                DiscussionId = dd.DiscussionId,
-                                Title = dd.Title,
-                                Purpose = dd.Purpose
-                            }).ToList(),
-                            Tables = tables.Where(x => x.SectionId == s.SectionId).Select(tt => new TableViewModel
-                            {
-                                Title = tt.Title,
-                                HasHeader = tt.HasHeader,
-                                Rows = tt.TableData?.Rows?.Select(row =>
-                                    row.Cells.Select(cell => new TableCellViewModel { Value = cell }).ToList()
-                                ).ToList()
-                            }).ToList(),
-                            Attachments = attachments.Where(x => x.SectionId == s.SectionId).Select(aa => new AttachmentViewModel
-                            {
-                                AttachmentId = aa.AttachmentId,
-                                FileName = aa.FileName,
-                                Path = aa.Path,
-                                Type = Enum.TryParse<AttachmentType>(aa.Type, out var aTypeS) ? aTypeS : AttachmentType.Image,
-                                Order = aa.Order
-                            }).ToList()
+                                }).ToList(),
+                            Discussions = (discussionsBySection.TryGetValue(s.SectionId, out var sDiscussions) ? sDiscussions : new List<DiscussionDto>())
+                                .Select(dd => new DiscussionViewModel
+                                {
+                                    DiscussionId = dd.DiscussionId,
+                                    Title = dd.Title,
+                                    Purpose = dd.Purpose
+                                }).ToList(),
+                            Tables = (tablesBySection.TryGetValue(s.SectionId, out var sTables) ? sTables : new List<TableBlockDto>())
+                                .Select(tt => new TableViewModel
+                                {
+                                    Title = tt.Title,
+                                    HasHeader = tt.HasHeader,
+                                    Rows = tt.TableData?.Rows?.Select(row =>
+                                        row.Cells.Select(cell => new TableCellViewModel { Value = cell }).ToList()
+                                    ).ToList()
+                                }).ToList(),
+                            Attachments = (attachmentsBySection.TryGetValue(s.SectionId, out var sAttachments) ? sAttachments : new List<AttachmentDto>())
+                                .Select(aa => new AttachmentViewModel
+                                {
+                                    AttachmentId = aa.AttachmentId,
+                                    FileName = aa.FileName,
+                                    Path = aa.Path,
+                                    Type = Enum.TryParse<AttachmentType>(aa.Type, out var aTypeS) ? aTypeS : AttachmentType.Image,
+                                    Order = aa.Order
+                                }).ToList()
                         }).ToList(),
                     // المكونات العامة بعد جميع البنود
-                    Surveys = surveys.Where(s => s.SectionId == null).Select(s => new SurveyViewModel
+                    Surveys = globalSurveys.Select(s => new SurveyViewModel
                     {
                         SurveyId = s.SurveyId,
                         Title = s.Title,
@@ -173,13 +223,13 @@ namespace RourtPPl01.Areas.UserPortal.Controllers
                             }).ToList() ?? new()
                         }).ToList() ?? new()
                     }).ToList(),
-                    Discussions = discussions.Where(d => d.SectionId == null).Select(d => new DiscussionViewModel
+                    Discussions = globalDiscussions.Select(d => new DiscussionViewModel
                     {
                         DiscussionId = d.DiscussionId,
                         Title = d.Title,
                         Purpose = d.Purpose
                     }).ToList(),
-                    Tables = tables.Where(t => t.SectionId == null).Select(t => new TableViewModel
+                    Tables = globalTables.Select(t => new TableViewModel
                     {
                         Title = t.Title,
                         HasHeader = t.HasHeader,
@@ -187,7 +237,7 @@ namespace RourtPPl01.Areas.UserPortal.Controllers
                             row.Cells.Select(cell => new TableCellViewModel { Value = cell }).ToList()
                         ).ToList()
                     }).ToList(),
-                    Attachments = attachments.Where(a => a.SectionId == null).Select(a => new AttachmentViewModel
+                    Attachments = globalAttachments.Select(a => new AttachmentViewModel
                     {
                         AttachmentId = a.AttachmentId,
                         FileName = a.FileName,
@@ -233,7 +283,7 @@ namespace RourtPPl01.Areas.UserPortal.Controllers
                     return RedirectToAction("Index", "MyEvents");
                 }
 
-                if (eventDto.OrganizationId != orgId)
+                if (eventDto.OrganizationId != orgId && !eventDto.IsBroadcast)
                 {
                     return Forbid();
                 }
@@ -321,6 +371,9 @@ namespace RourtPPl01.Areas.UserPortal.Controllers
                     });
                 }
 
+                // Regenerate merged Custom PDF (if any) so participants table reflects latest participation
+                await _attachmentsService.RegenerateMergedCustomPdfIfAnyAsync(vm.EventId);
+
                 TempData["Success"] = "تم إرسال ردك بنجاح";
                 return RedirectToAction(nameof(Confirmation), new { eventId = vm.EventId });
             }
@@ -335,6 +388,9 @@ namespace RourtPPl01.Areas.UserPortal.Controllers
         // ============================================
         // GET: UserPortal/EventParticipation/Confirmation/eventId
         // ============================================
+        [ResponseCache(Duration = 30, Location = ResponseCacheLocation.Client, NoStore = false)]
+
+        [AllowAnonymous]
         [HttpGet]
         public IActionResult Confirmation(Guid eventId)
         {

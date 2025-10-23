@@ -465,6 +465,9 @@ namespace EvenDAL.Migrations
                     b.Property<DateTime>("EndAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("IsBroadcast")
+                        .HasColumnType("bit");
+
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
@@ -740,13 +743,43 @@ namespace EvenDAL.Migrations
                             LicenseExpiry = new DateTime(2030, 12, 31, 23, 59, 59, 0, DateTimeKind.Utc),
                             LicenseKey = "MINA-SEED-2025",
                             Logo = "",
-                            Name = "الجهة التجريبية",
-                            NameEn = "Test Organization",
+                            Name = "بدون مجموعة",
+                            NameEn = "Ungrouped",
                             PrimaryColor = "#0d6efd",
                             SecondaryColor = "#6c757d",
                             Settings = "{}",
                             Type = "Other"
                         });
+                });
+
+            modelBuilder.Entity("EvenDAL.Models.Classes.PdfVerification", b =>
+                {
+                    b.Property<Guid>("PdfVerificationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ExportedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PdfType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("VerificationUrl")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.HasKey("PdfVerificationId");
+
+                    b.HasIndex("PdfVerificationId")
+                        .IsUnique();
+
+                    b.ToTable("PdfVerifications");
                 });
 
             modelBuilder.Entity("EvenDAL.Models.Classes.PlatformAdmin", b =>
@@ -1166,7 +1199,7 @@ namespace EvenDAL.Migrations
                     b.Property<DateTime?>("LastLogin")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid>("OrganizationId")
+                    b.Property<Guid?>("OrganizationId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Phone")
@@ -1193,7 +1226,8 @@ namespace EvenDAL.Migrations
                     b.HasIndex("Role");
 
                     b.HasIndex("OrganizationId", "Email")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[OrganizationId] IS NOT NULL");
 
                     b.ToTable("Users");
 
@@ -1814,8 +1848,7 @@ namespace EvenDAL.Migrations
                     b.HasOne("EvenDAL.Models.Classes.Organization", "Organization")
                         .WithMany("Users")
                         .HasForeignKey("OrganizationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Organization");
                 });

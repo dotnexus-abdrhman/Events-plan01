@@ -10,9 +10,13 @@ namespace RourtPPl01.Areas.Admin.ViewModels
     public class EventsIndexViewModel
     {
         public List<EventListItemViewModel> Events { get; set; } = new();
+        // Filters/Search
         public string? SearchTerm { get; set; }
         public int? StatusFilter { get; set; }
         public DateTime? StartDateFilter { get; set; }
+        public DateTime? EndDateFilter { get; set; }
+        public Guid? OrganizationFilter { get; set; }
+        public IEnumerable<SelectListItem> Organizations { get; set; } = Enumerable.Empty<SelectListItem>();
     }
 
     public class EventListItemViewModel
@@ -152,10 +156,20 @@ namespace RourtPPl01.Areas.Admin.ViewModels
 
         public EventStatus Status { get; set; } = EventStatus.Draft;
 
-        [Required(ErrorMessage = "الجهة مطلوبة")]
+        // خيار الجمهور: إرسال الحدث إلى جميع المستخدمين عبر كل المجموعات
+        public bool SendToAllUsers { get; set; } = false;
+
+        // خيار جديد: إرسال لمستخدمين محددين (عند تفعيله يتجاهل عرض المجموعة للمستخدمين غير المدعوين)
+        public bool SendToSpecificUsers { get; set; } = false;
+
+        // تصبح مطلوبة فقط عندما لا يكون الإرسال إلى الجميع ولا إلى أفراد محددين
         public Guid OrganizationId { get; set; }
 
         public IEnumerable<SelectListItem> Organizations { get; set; } = Enumerable.Empty<SelectListItem>();
+
+        // قائمة المستخدمين للاختيار (Multi-select)
+        public IEnumerable<SelectListItem> Users { get; set; } = Enumerable.Empty<SelectListItem>();
+        public List<Guid> InvitedUserIds { get; set; } = new();
 
         // JSON مجمّع لمكونات البناء (بنود/استبيانات/نقاشات/جداول/مرفقات)
         public string? BuilderJson { get; set; }
@@ -185,6 +199,10 @@ namespace RourtPPl01.Areas.Admin.ViewModels
         public bool RequireSignature { get; set; }
 
         public EventStatus Status { get; set; } = EventStatus.Draft;
+
+        // إدارة الدعوات الفردية
+        public IEnumerable<SelectListItem> Users { get; set; } = Enumerable.Empty<SelectListItem>();
+        public List<Guid> InvitedUserIds { get; set; } = new();
     }
 }
 

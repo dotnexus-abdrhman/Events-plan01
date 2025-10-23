@@ -47,6 +47,31 @@
         <select asp-for="Status" class="form-select" asp-items="Html.GetEnumSelectList<EventStatus>()"></select>
         <span class="text-danger" asp-validation-for="Status"></span>
     </div>
+    <div class="mb-3" id="usersSelectWrap">
+        <label class="form-label">المستخدمون المستهدفون (اختياري)</label>
+        <!-- نحافظ على الـ select الأصلي للـ model binding لكن نخفيه ونزامنه مع الواجهة الجديدة -->
+        <select asp-for="InvitedUserIds" asp-items="Model.Users" class="form-select d-none" multiple id="InvitedUserIds"></select>
+
+        <div class="mb-2">
+            <input type="search" class="form-control" id="userSearch" placeholder="ابحث بالاسم أو الهاتف أو البريد">
+        </div>
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <small class="text-muted" id="usersSelectedCount">تم اختيار 0 مستخدم</small>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="clearAllUsers">إلغاء الكل</button>
+        </div>
+        <div id="usersList" class="list-group overflow-auto border" style="max-height:320px;">
+            @foreach (var u in Model.Users ?? Enumerable.Empty<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>())
+            {
+                var isSelected = u.Selected;
+                <label class="list-group-item d-flex align-items-center gap-2">
+                    <input type="checkbox" class="form-check-input user-checkbox" value="@u.Value" @(isSelected ? "checked" : null) data-text="@u.Text" />
+                    <span class="flex-grow-1">@u.Text</span>
+                </label>
+            }
+        </div>
+        <div class="form-text">عند اختيار مستخدمين هنا، سيظهر الحدث لهم فقط ولن يظهر لبقية أعضاء المجموعة.</div>
+    </div>
+
 
     <div class="mt-3 d-flex align-items-center gap-2">
         <button type="submit" class="btn btn-primary">حفظ</button>
@@ -122,6 +147,54 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+      // واجهة اختيار المستخدمين (بحث + تحديد متعدد) مع مزامنة للـ select المخفي في صفحة التعديل
+      (function(){
+        function setupUserPicker(rootId, selectId){
+          const root = document.getElementById(rootId);
+          const select = document.getElementById(selectId);
+          if(!root || !select) return;
+          const search = root.querySelector('#userSearch');
+          const countEl = root.querySelector('#usersSelectedCount');
+          const clearBtn = root.querySelector('#clearAllUsers');
+
+          function setOptionSelected(val, sel){
+            if(!select) return;
+            // Avoid dependency on CSS.escape for wider browser support
+            const opts = select && select.options ? Array.from(select.options) : [];
+            for (let i = 0; i < opts.length; i++){
+              if (opts[i].value === String(val)) { opts[i].selected = !!sel; return; }
+            }
+          }
+          function refreshCount(){
+            const c = root.querySelectorAll('.user-checkbox:checked').length;
+            countEl && (countEl.textContent = `تم اختيار ${c} مستخدم`);
+          }
+          root.querySelectorAll('.user-checkbox').forEach(cb => {
+            if(cb.checked) setOptionSelected(cb.value, true);
+            cb.addEventListener('change', function(){ setOptionSelected(cb.value, cb.checked); refreshCount(); });
+          });
+          if(clearBtn){
+            clearBtn.addEventListener('click', function(){
+              root.querySelectorAll('.user-checkbox').forEach(cb => { cb.checked = false; setOptionSelected(cb.value, false); });
+              refreshCount();
+            });
+          }
+          if(search){
+            search.addEventListener('input', function(){
+              const q = (search.value || '').trim().toLowerCase();
+              root.querySelectorAll('.list-group-item').forEach(li => {
+                const t = (li.querySelector('.user-checkbox')?.getAttribute('data-text') || '').toLowerCase();
+                li.style.display = q === '' || t.includes(q) ? '' : 'none';
+              });
+            });
+          }
+          refreshCount();
+        }
+        document.addEventListener('DOMContentLoaded', function(){ setupUserPicker('usersSelectWrap','InvitedUserIds'); });
+      })();
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script>
       (function(){

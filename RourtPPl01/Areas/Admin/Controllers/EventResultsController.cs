@@ -5,13 +5,13 @@ using RourtPPl01.Areas.Admin.ViewModels;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
 using RouteDAl.Data.Contexts;
-
+using Microsoft.Extensions.Hosting;
 using System.IO;
 
 namespace RourtPPl01.Areas.Admin.Controllers
 {
     [Area("Admin")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "PlatformAdmin")]
     public class EventResultsController : Controller
     {
         private readonly IMinaResultsService _resultsService;
@@ -19,19 +19,22 @@ namespace RourtPPl01.Areas.Admin.Controllers
         private readonly ILogger<EventResultsController> _logger;
         private readonly AppDbContext _db;
         private readonly IPdfExportService _pdf;
+        private readonly IHostEnvironment _env;
 
         public EventResultsController(
             IMinaResultsService resultsService,
             IMinaEventsService eventsService,
             ILogger<EventResultsController> logger,
             AppDbContext db,
-            IPdfExportService pdf)
+            IPdfExportService pdf,
+            IHostEnvironment env)
         {
             _resultsService = resultsService;
             _eventsService = eventsService;
             _logger = logger;
             _db = db;
             _pdf = pdf;
+            _env = env;
         }
 
         [HttpGet]
@@ -84,6 +87,79 @@ namespace RourtPPl01.Areas.Admin.Controllers
                 return RedirectToAction(nameof(Summary), new { eventId });
             }
         }
+        [HttpGet]
+        public async Task<IActionResult> ExportCustomPdfResults(Guid eventId)
+        {
+            try
+            {
+                if (!await CanAccessEvent(eventId))
+                {
+                    return Forbid();
+                }
+
+                _logger.LogInformation("[EventResults] ExportCustomPdfResults for Event {EventId}", eventId);
+
+                // حاول استخدام الملف المدمج الجاهز إن وجد
+                var merged = await _db.Attachments.AsNoTracking()
+                    .Where(a => a.EventId == eventId && a.Type == EvenDAL.Models.Shared.Enums.AttachmentType.CustomPdfMerged)
+                    .OrderByDescending(a => a.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                if (merged != null && !string.IsNullOrWhiteSpace(merged.Path))
+                {
+                    var full = Path.Combine(_env.ContentRootPath, "wwwroot", merged.Path.TrimStart('/'));
+                    _logger.LogInformation("[EventResults] Trying to serve pre-merged file at {Path}", full);
+                    if (System.IO.File.Exists(full))
+                    {
+                        var readyBytes = await System.IO.File.ReadAllBytesAsync(full);
+                        _logger.LogInformation("[EventResults] Serving pre-merged file. Size={Size}", readyBytes.Length);
+                        var evt = await _eventsService.GetEventByIdAsync(eventId);
+                        var title = evt?.Title ?? "event";
+                        return File(readyBytes, "application/pdf", $"Custom-Results-{title}.pdf");
+                    }
+                    _logger.LogWarning("[EventResults] Pre-merged PDF record found but file missing: {Path}", full);
+                }
+
+                // تراجع إلى الدمج عند الطلب كحل احتياطي + إضافة QR افتراضي
+                _logger.LogInformation("[EventResults] Fallback to on-demand merge for Event {EventId}", eventId);
+
+                var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}".TrimEnd('/');
+                var fallbackOptions = new PdfExportOptions
+                {
+                    // Keep conservative contents similar to participants export
+                    IncludeEventDetails = true,
+                    IncludeSurveyAndResponses = false,
+                    IncludeDiscussions = false,
+                    IncludeSignatures = true,
+                    IncludeSections = false,
+                    IncludeAttachments = false,
+                    BrandingFooterText = "منصة مينا لإدارة الفعاليات",
+
+                    // QR defaults
+                    QrCodeSize = 45,
+                    QrCodePosition = "BottomLeft",
+                    ShowQrCode = true,
+                    ShowVerificationUrl = true,
+
+                    VerificationUrlBase = baseUrl,
+                    VerificationId = Guid.NewGuid(),
+                    VerificationType = "CustomWithParticipants"
+                };
+
+                var bytes = await _pdf.ExportCustomMergedWithParticipantsPdfAsync(eventId, fallbackOptions);
+                _logger.LogInformation("[EventResults] On-demand merged size = {Size}", bytes?.Length ?? 0);
+                var evtFallback = await _eventsService.GetEventByIdAsync(eventId);
+                var titleFallback = evtFallback?.Title ?? "event";
+                return File(bytes, "application/pdf", $"Custom-Results-{titleFallback}.pdf");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "فشل تصدير PDF المخصص للحدث {EventId}", eventId);
+                TempData["Error"] = "تعذر إنشاء ملف PDF المخصص.";
+                return RedirectToAction(nameof(Summary), new { eventId });
+            }
+        }
+
 
         // ============================================
         // GET: Admin/EventResults/ExportOptions?eventId=...
@@ -127,6 +203,15 @@ namespace RourtPPl01.Areas.Admin.Controllers
                 logoBytes = ms.ToArray();
             }
 
+            // Read optional background image
+            byte[]? bgBytes = null;
+            if (model.BackgroundImageFile != null && model.BackgroundImageFile.Length > 0)
+            {
+                using var bg = new MemoryStream();
+                await model.BackgroundImageFile.CopyToAsync(bg);
+                bgBytes = bg.ToArray();
+            }
+
             var options = new PdfExportOptions
             {
                 IncludeEventDetails = model.IncludeEventDetails,
@@ -138,13 +223,110 @@ namespace RourtPPl01.Areas.Admin.Controllers
                 BrandingFooterText = string.IsNullOrWhiteSpace(model.BrandingFooterText)
                     ? "منصة مينا لإدارة الفعاليات"
                     : model.BrandingFooterText,
-                LogoBytes = logoBytes
+                LogoBytes = logoBytes,
+
+                // Appearance
+                BackgroundImageBytes = bgBytes,
+                BackgroundOpacity = model.BackgroundOpacity,
+                FontColorHex = string.IsNullOrWhiteSpace(model.FontColorHex) ? "#000000" : model.FontColorHex,
+                FontFamily = string.IsNullOrWhiteSpace(model.FontFamily) ? null : model.FontFamily,
+                BaseFontSize = model.BaseFontSize > 0 ? model.BaseFontSize : 11,
+                TableHeaderBackgroundColorHex = string.IsNullOrWhiteSpace(model.TableHeaderBackgroundColorHex) ? null : model.TableHeaderBackgroundColorHex,
+
+                // QR customization
+                QrCodeSize = model.QrCodeSize > 0 ? model.QrCodeSize : 45,
+                QrCodePosition = string.IsNullOrWhiteSpace(model.QrCodePosition) ? "BottomLeft" : model.QrCodePosition,
+                ShowQrCode = model.ShowQrCode,
+                ShowVerificationUrl = model.ShowVerificationUrl
             };
+
+            // Prepare verification for this export
+            var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}".TrimEnd('/');
+            options.VerificationUrlBase = baseUrl;
+            options.VerificationId = Guid.NewGuid();
+            options.VerificationType = "CustomResults";
 
             var evt = await _eventsService.GetEventByIdAsync(model.EventId);
             var fileName = $"Event_Results_{(evt?.Title ?? "").Replace(' ', '_')}_{DateTime.UtcNow:yyyyMMdd}.pdf";
             var bytes = await _pdf.ExportEventResultsPdfAsync(model.EventId, options);
             return File(bytes, "application/pdf", fileName);
+        }
+
+        // ============================================
+        // GET: Admin/EventResults/ParticipantsTableOptions?eventId=...
+        // ============================================
+        [HttpGet]
+        public async Task<IActionResult> ParticipantsTableOptions(Guid eventId)
+        {
+            if (!await CanAccessEvent(eventId))
+                return Forbid();
+
+            var vm = new ParticipantsTableOptionsVm
+            {
+                EventId = eventId,
+                FontFamily = null,
+                BaseFontSize = 11,
+                FontColorHex = "#000000",
+                TableHeaderBackgroundColorHex = null
+            };
+            return View(vm);
+        }
+
+        // ============================================
+        // POST: Admin/EventResults/ExportCustomPdfParticipants
+        // ============================================
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ExportCustomPdfParticipants(ParticipantsTableOptionsVm model)
+        {
+            if (!await CanAccessEvent(model.EventId))
+                return Forbid();
+
+            // Read optional background image (same approach as ExportResultsPdf)
+            byte[]? bgBytes = null;
+            if (model.BackgroundImageFile != null && model.BackgroundImageFile.Length > 0)
+            {
+                using var bg = new MemoryStream();
+                await model.BackgroundImageFile.CopyToAsync(bg);
+                bgBytes = bg.ToArray();
+            }
+
+            var options = new PdfExportOptions
+            {
+                IncludeEventDetails = true,
+                IncludeSurveyAndResponses = false,
+                IncludeDiscussions = false,
+                IncludeSignatures = true,
+                IncludeSections = false,
+                IncludeAttachments = false,
+                BrandingFooterText = "منصة مينا لإدارة الفعاليات",
+                LogoBytes = null,
+
+                // Appearance (copied from ExportResultsPdf)
+                BackgroundImageBytes = bgBytes,
+                BackgroundOpacity = model.BackgroundOpacity,
+                FontFamily = string.IsNullOrWhiteSpace(model.FontFamily) ? null : model.FontFamily,
+                BaseFontSize = model.BaseFontSize > 0 ? model.BaseFontSize : 11,
+                FontColorHex = string.IsNullOrWhiteSpace(model.FontColorHex) ? "#000000" : model.FontColorHex,
+                TableHeaderBackgroundColorHex = string.IsNullOrWhiteSpace(model.TableHeaderBackgroundColorHex) ? null : model.TableHeaderBackgroundColorHex,
+
+                // QR customization
+                QrCodeSize = model.QrCodeSize > 0 ? model.QrCodeSize : 45,
+                QrCodePosition = string.IsNullOrWhiteSpace(model.QrCodePosition) ? "BottomLeft" : model.QrCodePosition,
+                ShowQrCode = model.ShowQrCode,
+                ShowVerificationUrl = model.ShowVerificationUrl
+            };
+
+            // Prepare verification for merged export
+            var baseUrl2 = $"{Request.Scheme}://{Request.Host}{Request.PathBase}".TrimEnd('/');
+            options.VerificationUrlBase = baseUrl2;
+            options.VerificationId = Guid.NewGuid();
+            options.VerificationType = "CustomWithParticipants";
+
+            var bytes = await _pdf.ExportCustomMergedWithParticipantsPdfAsync(model.EventId, options);
+            var evt = await _eventsService.GetEventByIdAsync(model.EventId);
+            var title = evt?.Title ?? "event";
+            return File(bytes, "application/pdf", $"Custom-Results-{title}.pdf");
         }
 
         [HttpGet]
@@ -198,6 +380,8 @@ namespace RourtPPl01.Areas.Admin.Controllers
 
                 var eventDto = await _eventsService.GetEventByIdAsync(eventId);
 
+                var hasCustomPdfs = await _db.Attachments.AsNoTracking().AnyAsync(a => a.EventId == eventId && a.Type == EvenDAL.Models.Shared.Enums.AttachmentType.CustomPdf);
+
                 var vm = new ResultsSummaryViewModel
                 {
                     EventId = eventId,
@@ -225,7 +409,8 @@ namespace RourtPPl01.Areas.Admin.Controllers
                             }).ToList()
                         }).ToList()
                     }).ToList(),
-                    UserResponses = new List<UserResponseViewModel>() // Empty for now - will be populated from database later
+                    UserResponses = new List<UserResponseViewModel>(),
+                    HasCustomPdfs = hasCustomPdfs
                 };
 
                 // Build detailed user responses
@@ -375,7 +560,7 @@ namespace RourtPPl01.Areas.Admin.Controllers
             var orgId = GetOrganizationId();
             var eventDto = await _eventsService.GetEventByIdAsync(eventId);
             // اسمح للمشرف (Admin) دائمًا
-            if (User.IsInRole("Admin")) return eventDto != null;
+            if (User.IsInRole("PlatformAdmin")) return eventDto != null;
             return eventDto != null && eventDto.OrganizationId == orgId;
         }
 

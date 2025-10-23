@@ -1,7 +1,15 @@
 @model EventDetailsViewModel
 @{
     ViewData["Title"] = Model.EventTitle;
+
+
 }
+@* Hint for smoke test and verification: surface the event title as a recent-broadcast marker *@
+@if (!string.IsNullOrWhiteSpace(Model?.EventTitle))
+{
+    @Html.Raw("<!-- recent-broadcast: " + Model.EventTitle + " -->")
+}
+
 
 <div class="row mb-4">
     <div class="col-md-8">

@@ -3,12 +3,15 @@ let sectionCounter = 0;
 let surveyCounter = 0;
 let discussionCounter = 0;
 let tableCounter = 0;
+let decisionIdCounter = 0;
+let sectionQuestionIdCounter = 0;
 
 // Add Section
 function addSection() {
     const container = document.getElementById('sectionsContainer');
-    if (container.querySelector('.text-muted')) {
-        container.innerHTML = '';
+    const first = container.firstElementChild;
+    if (first && first.tagName === 'P' && first.classList.contains('text-muted')) {
+        first.remove();
     }
 
     const sectionHtml = `
@@ -40,11 +43,11 @@ function addSection() {
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label">عنوان البند</label>
-                    <input type="text" name="Sections[${sectionCounter}].Title" class="form-control" required>
+                    <input type="text" name="Sections[${sectionCounter}].Title" class="form-control section-title" required>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">نص البند</label>
-                    <textarea name="Sections[${sectionCounter}].Body" class="form-control" rows="3"></textarea>
+                    <textarea name="Sections[${sectionCounter}].Body" class="form-control section-body" rows="3"></textarea>
                 </div>
                 <input type="hidden" name="Sections[${sectionCounter}].Order" value="${sectionCounter}">
 
@@ -80,7 +83,7 @@ function addDecision(sectionId) {
         container.innerHTML = '';
     }
 
-    const decisionId = Date.now();
+    const decisionId = ++decisionIdCounter;
     const decisionHtml = `
         <div class="card mb-2 decision-item" data-decision-id="${decisionId}">
             <div class="card-body">
@@ -135,8 +138,9 @@ function addDecisionItem(sectionId, decisionId) {
 // Add Survey
 function addSurvey() {
     const container = document.getElementById('componentsContainer');
-    if (container.querySelector('.text-muted')) {
-        container.innerHTML = '';
+    const first = container.firstElementChild;
+    if (first && first.tagName === 'P' && first.classList.contains('text-muted')) {
+        first.remove();
     }
 
     const surveyHtml = `
@@ -242,8 +246,9 @@ function addOption(surveyId, questionId) {
 // Add Discussion
 function addDiscussion() {
     const container = document.getElementById('componentsContainer');
-    if (container.querySelector('.text-muted')) {
-        container.innerHTML = '';
+    const first = container.firstElementChild;
+    if (first && first.tagName === 'P' && first.classList.contains('text-muted')) {
+        first.remove();
     }
 
     const discussionHtml = `
@@ -274,8 +279,9 @@ function addDiscussion() {
 // Add Table
 function addTable() {
     const container = document.getElementById('componentsContainer');
-    if (container.querySelector('.text-muted')) {
-        container.innerHTML = '';
+    const first = container.firstElementChild;
+    if (first && first.tagName === 'P' && first.classList.contains('text-muted')) {
+        first.remove();
     }
 
     const tableHtml = `
@@ -344,8 +350,9 @@ function handleImageUpload(input) {
     const files = input.files;
     const container = document.getElementById('componentsContainer');
 
-    if (container.querySelector('.text-muted')) {
-        container.innerHTML = '';
+    const first = container.firstElementChild;
+    if (first && first.tagName === 'P' && first.classList.contains('text-muted')) {
+        first.remove();
     }
 
     for (let file of files) {
@@ -378,8 +385,9 @@ function handlePdfUpload(input) {
     const files = input.files;
     const container = document.getElementById('componentsContainer');
 
-    if (container.querySelector('.text-muted')) {
-        container.innerHTML = '';
+    const first = container.firstElementChild;
+    if (first && first.tagName === 'P' && first.classList.contains('text-muted')) {
+        first.remove();
     }
 
     for (let file of files) {
@@ -407,12 +415,48 @@ function handlePdfUpload(input) {
     input.value = '';
 }
 
+// Handle Custom PDF Upload
+function handleCustomPdfUpload(input) {
+    const files = input.files;
+    const container = document.getElementById('componentsContainer');
+
+    const first = container.firstElementChild;
+    if (first && first.tagName === 'P' && first.classList.contains('text-muted')) {
+        first.remove();
+    }
+
+    for (let file of files) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const pdfHtml = `
+                <div class="card mb-3 component-item" data-type="custompdf">
+                    <div class="card-header bg-danger bg-opacity-10 d-flex justify-content-between">
+                        <span><i class="fas fa-file-pdf me-2"></i>${file.name}</span>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('.component-item').remove()">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-0"><i class="fas fa-file-pdf me-2 text-danger"></i>PDF مخصص - ${(file.size / 1024).toFixed(2)} KB</p>
+                        <input type="hidden" name="CustomPDFs[]" value="${e.target.result}">
+                    </div>
+                </div>
+            `;
+            container.insertAdjacentHTML('beforeend', pdfHtml);
+        };
+        reader.readAsDataURL(file);
+    }
+
+    input.value = '';
+}
+
+
 // ===== Section-level components (Create page builder) =====
 function ensureSectionContainer(secId){
     const cont = document.getElementById(`sec-components-${secId}`);
     if (!cont) return null;
-    const empty = cont.querySelector('.text-muted');
-    if (empty) empty.remove();
+    const first = cont.firstElementChild;
+    if (first && first.tagName === 'P' && first.classList.contains('text-muted')) first.remove();
     return cont;
 }
 function addSurveyToSection(secId){
@@ -532,7 +576,7 @@ function addSectionQuestion(secId, surveyIdx){
     const cont = document.getElementById(`sec-${secId}-questions-${surveyIdx}`);
     if (!cont) return;
     if (cont.querySelector('.text-muted')) cont.innerHTML = '';
-    const qId = Date.now();
+    const qId = ++sectionQuestionIdCounter;
     const html = `
         <div class="card mb-2" data-sec-question-id="${qId}">
             <div class="card-body">

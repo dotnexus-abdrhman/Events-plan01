@@ -41,6 +41,10 @@ namespace EventPl.Dto
 
         public bool RequireSignature { get; set; }
 
+        // Global broadcast flag
+        public bool IsBroadcast { get; set; }
+
+
         // Legacy properties (للتوافق مع الكود القديم)
         [StringLength(50)]
         public string TypeName { get; set; } = "Meeting";     // Meeting / Survey / Workshop / ...

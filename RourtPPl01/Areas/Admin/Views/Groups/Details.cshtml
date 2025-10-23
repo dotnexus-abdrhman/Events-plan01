@@ -1,0 +1,153 @@
+@model RourtPPl01.Areas.Admin.ViewModels.GroupDetailsVm
+@{
+    ViewData["Title"] = "تفاصيل المجموعة";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="fas fa-users me-2"></i>تفاصيل المجموعة</h2>
+    <div class="btn-group">
+        <a class="btn btn-secondary" asp-area="Admin" asp-controller="Groups" asp-action="Index"><i class="fas fa-arrow-right me-1"></i>عودة</a>
+        <a class="btn btn-primary" asp-area="Admin" asp-controller="Groups" asp-action="Edit" asp-route-id="@Model.Group.OrganizationId"><i class="fas fa-edit me-1"></i>تعديل</a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header fw-bold">المجموعة</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-5">الاسم (عربي)</dt>
+                    <dd class="col-7">@Model.Group.Name</dd>
+                    <dt class="col-5">الاسم (English)</dt>
+                    <dd class="col-7">@Model.Group.NameEn</dd>
+                    <dt class="col-5">النوع</dt>
+                    <dd class="col-7">@Model.Group.TypeName</dd>
+                    <dt class="col-5">الحالة</dt>
+                    <dd class="col-7">@(Model.Group.IsActive ? "نشطة" : "غير نشطة")</dd>
+                    <dt class="col-5">انتهاء الترخيص</dt>
+                    <dd class="col-7">@(Model.Group.LicenseExpiry?.ToString("yyyy/MM/dd") ?? "-")</dd>
+                    <dt class="col-5">تاريخ الإنشاء</dt>
+                    <dd class="col-7">@Model.Group.CreatedAt.ToString("yyyy/MM/dd HH:mm")</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card mb-3">
+            <div class="card-header fw-bold">المستخدمون (@Model.Users.Count)</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table mb-0 table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>الاسم</th>
+                                <th>البريد</th>
+                                <th>الهاتف</th>
+                                <th>الدور</th>
+                                <th>الحالة</th>
+                                <th class="text-end">إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @if (!Model.Users.Any())
+                        {
+                            <tr><td colspan="5" class="text-center text-muted">لا يوجد مستخدمون مرتبطون</td></tr>
+                        }
+                        else
+                        {
+                            foreach (var u in Model.Users)
+                            {
+                                <tr data-user-id="@u.UserId">
+                                    <td>@u.FullName</td>
+                                    <td>@u.Email</td>
+                                    <td>@u.Phone</td>
+                                    <td>@(u.RoleName switch { "Admin" => "المدير التنفيذي", "Organizer" => "عضو مجلس إدارة", "Attendee" => "عضو", "Observer" => "مراقب", _ => u.RoleName })</td>
+                                    <td>@(u.IsActive ? "نشط" : "غير نشط")</td>
+                                    <td class="text-end">
+                                        <form class="d-inline js-remove-member" asp-area="Admin" asp-controller="Groups" asp-action="RemoveMember" asp-route-id="@Model.Group.OrganizationId" asp-route-userId="@u.UserId" method="post" onsubmit="return confirm('تأكيد حذف العضو من المجموعة؟');">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="fas fa-user-minus"></i> حذف من المجموعة
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header fw-bold">الفعاليات (@Model.Events.Count)</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table mb-0 table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>العنوان</th>
+                                <th>الحالة</th>
+                                <th>البداية</th>
+                                <th>النهاية</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @if (!Model.Events.Any())
+                        {
+                            <tr><td colspan="4" class="text-center text-muted">لا توجد فعاليات مرتبطة</td></tr>
+                        }
+                        else
+                        {
+                            foreach (var e in Model.Events)
+                            {
+                                <tr>
+                                    <td>@e.Title</td>
+                                    <td>@e.StatusName</td>
+                                    <td>@e.StartAt.ToString("yyyy/MM/dd HH:mm")</td>
+                                    <td>@e.EndAt.ToString("yyyy/MM/dd HH:mm")</td>
+                                </tr>
+
+
+                            }
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+@section Scripts {
+    <script>
+        (function(){
+            const forms = document.querySelectorAll('form.js-remove-member');
+            forms.forEach(f => {
+                f.addEventListener('submit', function(ev){
+                    if (!window.fetch) return; // fallback to normal submit
+                    ev.preventDefault();
+                    if (!confirm('\u062a\u0623\u0643\u064a\u062f \u0627\u0644\u062d\u0630\u0641\u061f')) return;
+                    const formData = new FormData(f);
+                    const token = f.querySelector('input[name="__RequestVerificationToken"]').value;
+                    fetch(f.action, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest', 'RequestVerificationToken': token }, body: formData })
+                        .then(r => r.json())
+                        .then(res => {
+                            if (res && res.ok){
+                                const tr = f.closest('tr');
+                                if (tr) tr.remove();
+                            } else {
+                                alert(res.message || '\u062a\u0639\u0630\u0631 \u0627\u0644\u062d\u0630\u0641');
+                            }
+                        })
+                        .catch(()=> alert('\u062a\u0639\u0630\u0631 \u0627\u0644\u062d\u0630\u0641'));
+                });
+            });
+        })();
+    </script>
+}

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RouteDAl.Data.Contexts;
 using RourtPPl01.Areas.UserPortal.ViewModels;
+using System;
 
 namespace RourtPPl01.Areas.Public.Controllers
 {
@@ -265,7 +266,10 @@ namespace RourtPPl01.Areas.Public.Controllers
                     });
                 }
 
-                TempData["Success"] = "تم ارسال ردودك بنجاح";
+                // Regenerate merged Custom PDF (if any) so participants table reflects latest participation
+                await _attachmentsService.RegenerateMergedCustomPdfIfAnyAsync(vm.EventId);
+
+                TempData["PublicSuccess"] = "تم ارسال ردودك بنجاح";
                 TempData["JustSubmitted"] = "1";
                 return RedirectToAction(nameof(Confirmation), new { token, eventId = vm.EventId, submitted = 1 });
             }
@@ -322,6 +326,9 @@ namespace RourtPPl01.Areas.Public.Controllers
             }
 
             _logger.LogInformation("Public Confirmation allowed. token={Token} userId={UserId} eventId={EventId}", token, userId, eventId);
+            // Pass success message to the view (scoped key to avoid leaking to Admin)
+            ViewBag.Success = TempData.ContainsKey("PublicSuccess") ? TempData["PublicSuccess"] : null;
+
             return View("Confirmation");
         }
 
@@ -370,11 +377,16 @@ namespace RourtPPl01.Areas.Public.Controllers
             ViewBag.Token = token;
             // Load components
             var eventDto = await _eventsService.GetEventByIdAsync(eventId);
-            var sections = await _sectionsService.GetEventSectionsAsync(eventId);
-            var surveys = await _surveysService.GetEventSurveysAsync(eventId);
-            var discussions = await _discussionsService.GetEventDiscussionsAsync(eventId);
-            var tables = await _tablesService.GetEventTablesAsync(eventId);
-            var attachments = await _attachmentsService.GetEventAttachmentsAsync(eventId);
+            var versionTicks = (eventDto.UpdatedAt ?? eventDto.CreatedAt).Ticks;
+            var sections = await _sectionsService.GetEventSectionsAsync(eventId, versionTicks);
+            var surveys = await _surveysService.GetEventSurveysAsync(eventId, versionTicks);
+            var discussions = await _discussionsService.GetEventDiscussionsAsync(eventId, versionTicks);
+            var tables = await _tablesService.GetEventTablesAsync(eventId, versionTicks);
+            var attachments = await _attachmentsService.GetEventAttachmentsAsync(eventId, versionTicks);
+            // Hide merged Custom PDF from Public area (admins only)
+            attachments = attachments
+                .Where(a => !string.Equals(a.Type, "CustomPdfMerged", StringComparison.OrdinalIgnoreCase))
+                .ToList();
             var hasSignature = await _signaturesService.HasUserSignedAsync(eventId, userId);
             var hasUserParticipated = (await _surveysService.HasUserAnsweredAsync(eventId, userId))
                                       || hasSignature;

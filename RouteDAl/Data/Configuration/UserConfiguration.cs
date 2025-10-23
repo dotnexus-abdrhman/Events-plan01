@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace EvenDAL.Data.Configuration
 {
@@ -34,17 +36,23 @@ namespace EvenDAL.Data.Configuration
                 .HasDefaultValueSql("SYSUTCDATETIME()");
 
             // Relationships
+            builder.Property(u => u.OrganizationId)
+                .IsRequired(false);
+
             builder.HasOne(u => u.Organization)
                 .WithMany(o => o.Users)
                 .HasForeignKey(u => u.OrganizationId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
 
 
 
 
             // Indexes
             builder.HasIndex(u => u.Email).IsUnique();
-            builder.HasIndex(u => new { u.OrganizationId, u.Email }).IsUnique();
+            builder.HasIndex(u => new { u.OrganizationId, u.Email })
+                    .IsUnique()
+                    .HasFilter("[OrganizationId] IS NOT NULL");
             builder.HasIndex(u => u.IsActive);
             builder.HasIndex(u => u.Role);
         }

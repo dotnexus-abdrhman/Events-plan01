@@ -50,9 +50,7 @@
                 </div>
                 <div class="col-md-6">
                     <label asp-for="Form.RoleName" class="form-label">الدور</label>
-                    <select asp-for="Form.RoleName" class="form-select">
-                        @foreach (var r in Model.Roles) { <option value="@r">@r</option> }
-                    </select>
+                    <select asp-for="Form.RoleName" class="form-select" asp-items="Model.Roles"></select>
                 </div>
                 <div class="col-md-6 d-flex align-items-end">
                     <div class="form-check">

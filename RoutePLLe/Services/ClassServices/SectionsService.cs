@@ -4,6 +4,7 @@ using EvenDAL.Repositories.InterFace;
 using EventPl.Dto.Mina;
 using EventPl.Services.Interface;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using RouteDAl.Data.Contexts;
 using System;
 using System.Collections.Generic;
@@ -22,19 +23,22 @@ namespace EventPl.Services.ClassServices
         private readonly IRepository<Decision, Guid> _decisionRepo;
         private readonly IRepository<DecisionItem, Guid> _itemRepo;
         private readonly IMapper _mapper;
+        private readonly IMemoryCache _cache;
 
         public SectionsService(
             AppDbContext db,
             IRepository<Section, Guid> sectionRepo,
             IRepository<Decision, Guid> decisionRepo,
             IRepository<DecisionItem, Guid> itemRepo,
-            IMapper mapper)
+            IMapper mapper,
+            IMemoryCache cache)
         {
             _db = db;
             _sectionRepo = sectionRepo;
             _decisionRepo = decisionRepo;
             _itemRepo = itemRepo;
             _mapper = mapper;
+            _cache = cache;
         }
 
         // ============================================
@@ -43,21 +47,59 @@ namespace EventPl.Services.ClassServices
 
         public async Task<List<SectionDto>> GetEventSectionsAsync(Guid eventId)
         {
+            var version = await _db.Events.AsNoTracking()
+                .Where(e => e.EventId == eventId)
+                .Select(e => (DateTime?)(e.UpdatedAt ?? e.CreatedAt))
+                .FirstOrDefaultAsync();
+            var ticks = version.HasValue ? version.Value.Ticks : 0L;
+            var cacheKey = $"evt:{eventId}:v:{ticks}:sections";
+            if (_cache.TryGetValue(cacheKey, out List<SectionDto> cached))
+                return cached;
+
             var sections = await _db.Sections
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Where(s => s.EventId == eventId)
                 .Include(s => s.Decisions.OrderBy(d => d.Order))
                     .ThenInclude(d => d.Items.OrderBy(i => i.Order))
                 .OrderBy(s => s.Order)
                 .ToListAsync();
 
-            return _mapper.Map<List<SectionDto>>(sections);
+            var dtos = _mapper.Map<List<SectionDto>>(sections);
+            _cache.Set(cacheKey, dtos, TimeSpan.FromSeconds(45));
+            return dtos;
         }
+        public async Task<List<SectionDto>> GetEventSectionsAsync(Guid eventId, long? eventVersionTicks)
+        {
+            var ticks = eventVersionTicks ?? (await _db.Events.AsNoTracking()
+                .Where(e => e.EventId == eventId)
+                .Select(e => (DateTime?)(e.UpdatedAt ?? e.CreatedAt))
+                .FirstOrDefaultAsync())?.Ticks ?? 0L;
+
+            var cacheKey = $"evt:{eventId}:v:{ticks}:sections";
+            if (_cache.TryGetValue(cacheKey, out List<SectionDto> cached))
+                return cached;
+
+            var sections = await _db.Sections
+                .AsNoTracking()
+                .AsSplitQuery()
+                .Where(s => s.EventId == eventId)
+                .Include(s => s.Decisions.OrderBy(d => d.Order))
+                    .ThenInclude(d => d.Items.OrderBy(i => i.Order))
+                .OrderBy(s => s.Order)
+                .ToListAsync();
+
+            var dtos = _mapper.Map<List<SectionDto>>(sections);
+            _cache.Set(cacheKey, dtos, TimeSpan.FromSeconds(45));
+            return dtos;
+        }
+
 
         public async Task<SectionDto?> GetSectionByIdAsync(Guid sectionId)
         {
             var section = await _db.Sections
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Where(s => s.SectionId == sectionId)
                 .Include(s => s.Decisions.OrderBy(d => d.Order))
                     .ThenInclude(d => d.Items.OrderBy(i => i.Order))
@@ -80,8 +122,8 @@ namespace EventPl.Services.ClassServices
             {
                 var existingSections = await _sectionRepo
                     .FindAsync(s => s.EventId == dto.EventId);
-                dto.Order = existingSections.Any() 
-                    ? existingSections.Max(s => s.Order) + 1 
+                dto.Order = existingSections.Any()
+                    ? existingSections.Max(s => s.Order) + 1
                     : 1;
             }
 
@@ -130,7 +172,7 @@ namespace EventPl.Services.ClassServices
                 .FindAsync(s => s.EventId == eventId && sectionIds.Contains(s.SectionId));
 
             var sectionsList = sections.ToList();
-            
+
             for (int i = 0; i < sectionIds.Count; i++)
             {
                 var section = sectionsList.FirstOrDefault(s => s.SectionId == sectionIds[i]);
@@ -162,8 +204,8 @@ namespace EventPl.Services.ClassServices
             {
                 var existingDecisions = await _decisionRepo
                     .FindAsync(d => d.SectionId == dto.SectionId);
-                dto.Order = existingDecisions.Any() 
-                    ? existingDecisions.Max(d => d.Order) + 1 
+                dto.Order = existingDecisions.Any()
+                    ? existingDecisions.Max(d => d.Order) + 1
                     : 1;
             }
 
@@ -219,8 +261,8 @@ namespace EventPl.Services.ClassServices
             {
                 var existingItems = await _itemRepo
                     .FindAsync(i => i.DecisionId == dto.DecisionId);
-                dto.Order = existingItems.Any() 
-                    ? existingItems.Max(i => i.Order) + 1 
+                dto.Order = existingItems.Any()
+                    ? existingItems.Max(i => i.Order) + 1
                     : 1;
             }
 

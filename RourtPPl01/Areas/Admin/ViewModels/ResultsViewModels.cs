@@ -12,6 +12,7 @@ namespace RourtPPl01.Areas.Admin.ViewModels
         public EventStatisticsViewModel Statistics { get; set; } = new();
         public List<SurveyResultViewModel> SurveyResults { get; set; } = new();
         public List<UserResponseViewModel> UserResponses { get; set; } = new();
+        public bool HasCustomPdfs { get; set; }
     }
 
     public class EventStatisticsViewModel
@@ -95,6 +96,41 @@ namespace RourtPPl01.Areas.Admin.ViewModels
         public bool UseOrganizationLogo { get; set; } = false;
         public IFormFile? LogoFile { get; set; }
         public string? BrandingFooterText { get; set; } = "منصة مينا لإدارة الفعاليات";
+
+        // Appearance customization
+        public IFormFile? BackgroundImageFile { get; set; }
+        public float BackgroundOpacity { get; set; } = 0.15f; // 0..1
+        public string? FontColorHex { get; set; } = "#000000";
+        public string? FontFamily { get; set; }
+        public int BaseFontSize { get; set; } = 11;
+        public string? TableHeaderBackgroundColorHex { get; set; }
+
+        // QR Code customization
+        public int QrCodeSize { get; set; } = 45;
+        public string QrCodePosition { get; set; } = "BottomLeft"; // BottomLeft, BottomRight, BottomCenter
+        public bool ShowQrCode { get; set; } = true;
+        public bool ShowVerificationUrl { get; set; } = true;
+    }
+
+    // ============================================
+    // Participants Table (Custom PDF merge) Options
+    // ============================================
+    public class ParticipantsTableOptionsVm
+    {
+        public Guid EventId { get; set; }
+        public string? FontColorHex { get; set; } = "#000000";
+        public string? FontFamily { get; set; }
+        public int BaseFontSize { get; set; } = 11;
+        public string? TableHeaderBackgroundColorHex { get; set; }
+
+        // Background appearance (same as ExportOptions)
+        public IFormFile? BackgroundImageFile { get; set; }
+        public float BackgroundOpacity { get; set; } = 0.15f; // 0..1
+
+        // QR Code customization
+        public int QrCodeSize { get; set; } = 45;
+        public string QrCodePosition { get; set; } = "BottomLeft"; // BottomLeft, BottomRight, BottomCenter
+        public bool ShowQrCode { get; set; } = true;
+        public bool ShowVerificationUrl { get; set; } = true;
     }
 }
-

@@ -9,7 +9,7 @@ using System;
 namespace RourtPPl01.Areas.Admin.Controllers
 {
     [Area("Admin")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "PlatformAdmin")]
     public class EventComponentsController : Controller
     {
         private readonly ISurveysService _surveysService;
@@ -298,7 +298,7 @@ namespace RourtPPl01.Areas.Admin.Controllers
             var orgId = GetOrganizationId();
             var eventDto = await _eventsService.GetEventByIdAsync(eventId);
             // 2733452d 444445343141 (Admin) 2f2726454b27
-            if (User.IsInRole("Admin")) return eventDto != null;
+            if (User.IsInRole("PlatformAdmin")) return eventDto != null;
             return eventDto != null && eventDto.OrganizationId == orgId;
         }
 

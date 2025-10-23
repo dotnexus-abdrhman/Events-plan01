@@ -14,22 +14,27 @@ namespace EventPl.Services.Interface
         /// الحصول على جميع جداول الحدث
         /// </summary>
         Task<List<TableBlockDto>> GetEventTablesAsync(Guid eventId);
-        
+        /// <summary>
+        /// الحصول على جميع جداول الحدث مع تمرير نسخة الحدث (Ticks) لاستخدامها في المفتاح المؤقت
+        /// </summary>
+        Task<List<TableBlockDto>> GetEventTablesAsync(Guid eventId, long? eventVersionTicks);
+
+
         /// <summary>
         /// الحصول على جدول محدد
         /// </summary>
         Task<TableBlockDto?> GetTableByIdAsync(Guid tableBlockId);
-        
+
         /// <summary>
         /// إنشاء جدول جديد
         /// </summary>
         Task<TableBlockDto> CreateTableAsync(TableBlockDto dto);
-        
+
         /// <summary>
         /// تحديث جدول (مع معالجة JSON Case-Insensitive)
         /// </summary>
         Task<bool> UpdateTableAsync(TableBlockDto dto);
-        
+
         /// <summary>
         /// حذف جدول
         /// </summary>

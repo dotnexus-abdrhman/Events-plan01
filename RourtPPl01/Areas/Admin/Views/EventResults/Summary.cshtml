@@ -18,6 +18,15 @@
         <a class="btn btn-outline-secondary me-2" asp-area="Admin" asp-controller="EventResults" asp-action="ExportOptions" asp-route-eventId="@Model.EventId">
             <i class="fas fa-sliders-h me-1"></i>تصدير مخصص
         </a>
+        @if (Model.HasCustomPdfs)
+        {
+            <a class="btn btn-outline-success me-2" asp-area="Admin" asp-controller="EventResults" asp-action="ExportCustomPdfResults" asp-route-eventId="@Model.EventId">
+                <i class="fas fa-file-pdf me-1"></i>عرض نتائج PDF المخصص
+            </a>
+            <a class="btn btn-outline-info me-2" asp-area="Admin" asp-controller="EventResults" asp-action="ParticipantsTableOptions" asp-route-eventId="@Model.EventId">
+                <i class="fas fa-sliders-h me-1"></i>تخصيص جدول المشاركين
+            </a>
+        }
 
         <form method="get" asp-area="Admin" asp-controller="EventResults" asp-action="ExportUserPdf" class="d-inline-flex align-items-center me-2">
             <input type="hidden" name="eventId" value="@Model.EventId" />

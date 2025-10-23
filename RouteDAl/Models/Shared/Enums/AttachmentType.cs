@@ -6,7 +6,9 @@ namespace EvenDAL.Models.Shared.Enums
     public enum AttachmentType
     {
         Image = 1,
-        Pdf = 2
+        Pdf = 2,
+        CustomPdf = 3,
+        CustomPdfMerged = 4
     }
 }
 

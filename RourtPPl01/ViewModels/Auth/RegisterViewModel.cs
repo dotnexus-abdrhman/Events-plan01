@@ -20,10 +20,10 @@ namespace RourtPPl01.ViewModels.Auth
         public string? Phone { get; set; }
 
         // For User registration
-        [Display(Name = "الجهة")]
+        [Display(Name = "المجموعة")]
         public Guid OrganizationId { get; set; }
 
-        [Display(Name = "الدور داخل الجهة")]
+        [Display(Name = "الدور داخل المجموعة")]
         public string? RoleName { get; set; } // Attendee | Organizer | Observer
     }
 }

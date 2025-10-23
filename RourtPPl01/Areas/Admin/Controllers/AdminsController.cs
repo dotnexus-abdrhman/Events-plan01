@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace RourtPPl01.Areas.Admin.Controllers
 {
     [Area("Admin")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "PlatformAdmin")]
     public class AdminsController : Controller
     {
         private readonly ICrudService<AdminDto, Guid> _admins;

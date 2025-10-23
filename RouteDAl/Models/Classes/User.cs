@@ -13,7 +13,7 @@ namespace EvenDAL.Models.Classes
     public class User
     {
         public Guid UserId { get; set; }
-        public Guid OrganizationId { get; set; }
+        public Guid? OrganizationId { get; set; }
 
         [Required, MaxLength(100)]
         public string FullName { get; set; }
@@ -34,7 +34,7 @@ namespace EvenDAL.Models.Classes
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation Properties
-        public virtual Organization Organization { get; set; }
+        public virtual Organization? Organization { get; set; }
         public virtual ICollection<Event> CreatedEvents { get; set; } = new List<Event>();
 
         // العلاقات الجديدة

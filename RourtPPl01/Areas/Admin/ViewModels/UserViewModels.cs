@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace RourtPPl01.Areas.Admin.ViewModels
 {
@@ -17,8 +18,8 @@ namespace RourtPPl01.Areas.Admin.ViewModels
         [StringLength(20)]
         public string? Phone { get; set; }
 
-        [Required(ErrorMessage = "اختيار الجهة مطلوب")]
-        public Guid OrganizationId { get; set; }
+        // اختيار المجموعة اختياري
+        public Guid? OrganizationId { get; set; }
 
         [Required]
         [StringLength(50)]
@@ -31,7 +32,12 @@ namespace RourtPPl01.Areas.Admin.ViewModels
     {
         public CreateUserViewModel Form { get; set; } = new();
         public List<OrgItem> Organizations { get; set; } = new();
-        public List<string> Roles { get; set; } = new() { "Attendee", "Organizer", "Observer" };
+        public List<SelectListItem> Roles { get; set; } = new()
+        {
+            new SelectListItem { Value = "Admin", Text = "المدير التنفيذي" },
+            new SelectListItem { Value = "Organizer", Text = "عضو مجلس إدارة" },
+            new SelectListItem { Value = "Attendee", Text = "عضو" }
+        };
     }
 
     public class OrgItem
