@@ -75,8 +75,11 @@
                     <select asp-for="InvitedUserIds" asp-items="Model.Users" class="form-select d-none" id="InvitedUserIds" multiple></select>
 
                     <!-- صندوق البحث -->
-                    <div class="mb-2">
+                    <div class="input-group mb-2">
                         <input type="search" class="form-control" id="userSearch" placeholder="ابحث بالاسم أو الهاتف أو البريد">
+                        <button type="button" class="btn btn-outline-secondary" id="userSearchBtn" title="بحث" onclick="return window.applyUserPickerFilter();">
+                            <i class="fas fa-search"></i>
+                        </button>
                     </div>
 
                     <!-- العداد وإلغاء الكل -->
@@ -406,8 +409,8 @@
                 const root = document.getElementById(rootId);
                 const select = document.getElementById(selectId);
                 if(!root || !select) return;
-                const list = root.querySelector('#usersList');
-                const search = root.querySelector('#userSearch');
+                const list = document.getElementById('usersList');
+                const search = document.getElementById('userSearch');
                 const countEl = root.querySelector('#usersSelectedCount');
                 const clearBtn = root.querySelector('#clearAllUsers');
 
@@ -431,7 +434,10 @@
                 // تهيئة بيانات العناصر لبحث أسرع (يدعم 100+ عنصر بسلاسة)
                 const items = Array.from(list ? list.querySelectorAll('.list-group-item') : []).map(li => {
                     const cb = li.querySelector('.user-checkbox');
-                    return { li, cb, text: (cb?.getAttribute('data-text') || '').toLowerCase() };
+                    const base = ((li && (li.textContent || li.innerText)) || '').toLowerCase();
+                    const extra = cb && cb.getAttribute('data-text') ? cb.getAttribute('data-text').toLowerCase() : '';
+                    const txt = (base + ' ' + extra).trim();
+                    return { li, cb, text: txt };
                 });
 
                 // حالة عدم وجود مستخدمين
@@ -471,18 +477,40 @@
                         if (show) visibleCount++;
                     });
                 }
-                if(search){
-                    search.addEventListener('input', function(){
+                if (search) {
+                    function queueFilter(){
                         if (searchTimer) clearTimeout(searchTimer);
                         const val = search.value;
-                        // 75ms كافية لتصفية 100+ عنصر بدون تقطيع، وتبقى "فورية" بصرياً
                         searchTimer = setTimeout(() => applyFilter(val), 75);
-                    }, { passive: true });
+                    }
+                    search.addEventListener('input', queueFilter, { passive: true });
+                    search.addEventListener('search', queueFilter, { passive: true });
                 }
 
                 refreshCount();
             }
-            document.addEventListener('DOMContentLoaded', function(){ setupUserPicker('usersSelectWrap','InvitedUserIds'); });
+            // دالة فلترة عامة تعمل دائماً (زر البحث يعتمد عليها)
+            window.applyUserPickerFilter = function(){
+                try {
+                    const list = document.getElementById('usersList');
+                    const search = document.getElementById('userSearch');
+                    const query = (search?.value || '').trim().toLowerCase();
+                    const items = Array.from(list ? list.querySelectorAll('.list-group-item') : []);
+                    items.forEach(function(el){
+                        const text = (el.textContent || el.innerText || '').toLowerCase();
+                        el.style.display = (!query || text.includes(query)) ? '' : 'none';
+                    });
+                } catch (e) {
+                    if (window.console && console.error) console.error('applyUserPickerFilter error:', e);
+                }
+                return false;
+            };
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', function(){ setupUserPicker('usersSelectWrap','InvitedUserIds'); });
+            } else {
+                setupUserPicker('usersSelectWrap','InvitedUserIds');
+            }
         })();
     </script>
 

@@ -3606,4 +3606,53 @@ END");
             await Individual_Invitations_DoNotAffect_Broadcast_And_Org_Events();
         }
 
+
+        [Fact]
+        public async Task CreateEvent_UserSearch_UI_And_Filter_Function_Available()
+        {
+            await using var factory = new WebApplicationFactory<RourtPPl01.Program>();
+            using var admin = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+            // Login as admin
+            var loginGet = await admin.GetAsync("/Auth/Login");
+            Assert.Equal(HttpStatusCode.OK, loginGet.StatusCode);
+            var loginHtml = await loginGet.Content.ReadAsStringAsync();
+            var af = ExtractAntiForgeryToken(loginHtml);
+            Assert.False(string.IsNullOrEmpty(af));
+            var loginPost = await admin.PostAsync("/Auth/Login", new FormUrlEncodedContent(new[]
+            {
+                new KeyValuePair<string,string>("__RequestVerificationToken", af),
+                new KeyValuePair<string,string>("Identifier", "admin@mina.local"),
+            }));
+            Assert.True(loginPost.StatusCode == HttpStatusCode.Redirect || loginPost.StatusCode == HttpStatusCode.OK);
+
+            // Open Create Event page
+            var createGet = await admin.GetAsync("/Admin/Events/Create");
+            Assert.Equal(HttpStatusCode.OK, createGet.StatusCode);
+            var html = await createGet.Content.ReadAsStringAsync();
+
+            // Presence of search input, button, and list container
+            Assert.Contains("id=\"userSearch\"", html);
+            Assert.Contains("id=\"userSearchBtn\"", html);
+            Assert.Contains("id=\"usersList\"", html);
+
+            // Expect list-group-item class to exist in markup (at least structure)
+            Assert.Contains("list-group-item", html);
+
+            // Global filter function must be defined in scripts
+            Assert.Contains("window.applyUserPickerFilter", html);
+
+            // Button should be wired to call the global function
+            var btnWired = Regex.Match(html, "id=\\\"userSearchBtn\\\"[\\s\\S]*?onclick=\\\"[^\"]*applyUserPickerFilter", RegexOptions.IgnoreCase);
+            Assert.True(btnWired.Success, "Search button is not wired to window.applyUserPickerFilter");
+
+            // Live search listeners should exist (input + search events)
+            Assert.Contains("search.addEventListener('input'", html);
+            Assert.Contains("search.addEventListener('search'", html);
+
+            // Filtering logic should set style.display based on text.includes(query)
+            var logic = Regex.Match(html, "style\\.display\\s*=\\s*\\(!query\\s*\\|\\|\\s*text\\.includes\\(", RegexOptions.IgnoreCase);
+            Assert.True(logic.Success, "Filter logic not found in script");
+        }
+
 }

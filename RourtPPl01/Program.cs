@@ -335,12 +335,35 @@ namespace RourtPPl01
             {
                 app.UseHttpsRedirection();
             }
+
+            // Authenticate early so HttpContext.User is available for static-file auth checks
+            app.UseAuthentication();
+
+            // Block direct access to merged custom PDF for non-admin users (must run BEFORE UseStaticFiles)
+            app.Use(async (context, next) =>
+            {
+                var path = context.Request.Path.Value ?? string.Empty;
+                if (path.Contains("/uploads/events/", StringComparison.OrdinalIgnoreCase) &&
+                    path.EndsWith("custom-merged.pdf", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Only PlatformAdmin can access the merged PDF directly
+                    if (!(context.User?.Identity?.IsAuthenticated == true && context.User.IsInRole("PlatformAdmin")))
+                    {
+                        context.Response.StatusCode = StatusCodes.Status404NotFound;
+                        return;
+                    }
+                }
+                await next();
+            });
+
+            // Serve static files from wwwroot (works in Development and Production)
+            app.UseStaticFiles();
+
             app.UseRouting();
 
             // Enable response compression early in the pipeline (before MVC)
             app.UseResponseCompression();
 
-            app.UseAuthentication();
             app.UseAuthorization();
             // Append a recent-broadcast hint only to specific HTML pages (optimized)
             // Ensure UTF-8 charset for HTML responses so HttpClient decodes Arabic correctly in tests and dev
@@ -414,25 +437,7 @@ namespace RourtPPl01
             });
 
 
-            // Block direct access to merged custom PDF for non-admin users
-            app.Use(async (context, next) =>
-            {
-                var path = context.Request.Path.Value ?? string.Empty;
-                if (path.Contains("/uploads/events/", StringComparison.OrdinalIgnoreCase) &&
-                    path.EndsWith("custom-merged.pdf", StringComparison.OrdinalIgnoreCase))
-                {
-                    // Only PlatformAdmin can access the merged PDF directly
-                    if (!(context.User?.Identity?.IsAuthenticated == true && context.User.IsInRole("PlatformAdmin")))
-                    {
-                        context.Response.StatusCode = StatusCodes.Status404NotFound;
-                        return;
-                    }
-                }
-                await next();
-            });
 
-
-            app.MapStaticAssets();
 
             // Redirect root to Login
             app.MapGet("/", context => {
@@ -447,8 +452,7 @@ namespace RourtPPl01
 
             app.MapControllerRoute(
                 name: "default",
-                pattern: "{controller=Auth}/{action=Login}/{id?}")
-                .WithStaticAssets();
+                pattern: "{controller=Auth}/{action=Login}/{id?}");
 
 
             // Apply migrations (if any) and seed minimal data if missing
@@ -695,4 +699,6 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Events_Org_Status_Star
             app.Run();
         }
     }
+
 }
+//sss
